@@ -1,0 +1,127 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function officePath(officeId) {
+      return /databases/$(database)/documents/offices/$(officeId);
+    }
+
+    function queuePath(queueId) {
+      return /databases/$(database)/documents/queues/$(queueId);
+    }
+
+    function isOfficeAdmin(officeId) {
+      return signedIn()
+        && exists(officePath(officeId))
+        && get(officePath(officeId)).data.adminUid == request.auth.uid;
+    }
+
+    function isQueueAdmin(queueId) {
+      return signedIn()
+        && exists(queuePath(queueId))
+        && isOfficeAdmin(get(queuePath(queueId)).data.officeId);
+    }
+
+    function publicQueueCreate() {
+      return !signedIn()
+        && request.resource.data.keys().hasOnly([
+          "date",
+          "officeId",
+          "isOpen",
+          "isPaused",
+          "currentToken",
+          "totalIssued"
+        ])
+        && exists(officePath(request.resource.data.officeId))
+        && request.resource.data.date is string
+        && request.resource.data.isOpen == true
+        && request.resource.data.isPaused == false
+        && request.resource.data.currentToken == 0
+        && request.resource.data.totalIssued == 1;
+    }
+
+    function publicQueueIssueUpdate() {
+      return !signedIn()
+        && resource.data.isOpen == true
+        && resource.data.isPaused == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["totalIssued"])
+        && request.resource.data.totalIssued == resource.data.totalIssued + 1
+        && (
+          get(officePath(resource.data.officeId)).data.dailyLimit == null
+          || resource.data.totalIssued < get(officePath(resource.data.officeId)).data.dailyLimit
+        );
+    }
+
+    function validPublicTokenCreate(queueId) {
+      return !signedIn()
+        && existsAfter(queuePath(queueId))
+        && getAfter(queuePath(queueId)).data.isOpen == true
+        && getAfter(queuePath(queueId)).data.isPaused == false
+        && request.resource.data.keys().hasOnly([
+          "number",
+          "name",
+          "phone",
+          "serviceType",
+          "status",
+          "issuedAt",
+          "waitMinutes"
+        ])
+        && request.resource.data.number == getAfter(queuePath(queueId)).data.totalIssued
+        && request.resource.data.number is int
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.phone is string
+        && request.resource.data.phone.matches("^\\+91[0-9]{10}$")
+        && request.resource.data.serviceType is string
+        && request.resource.data.serviceType.size() > 0
+        && request.resource.data.serviceType.size() <= 60
+        && request.resource.data.status == "waiting"
+        && request.resource.data.issuedAt is timestamp
+        && request.resource.data.waitMinutes == 0;
+    }
+
+    function publicTokenCancel() {
+      return !signedIn()
+        && resource.data.status == "waiting"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+        && request.resource.data.status == "cancelled";
+    }
+
+    match /offices/{officeId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.adminUid == request.auth.uid;
+      allow update: if isOfficeAdmin(officeId)
+        && request.resource.data.adminUid == resource.data.adminUid;
+      allow delete: if false;
+    }
+
+    match /queues/{queueId} {
+      allow read: if true;
+      allow create: if (signedIn() && isOfficeAdmin(request.resource.data.officeId))
+        || publicQueueCreate();
+      allow update: if isQueueAdmin(queueId)
+        || publicQueueIssueUpdate();
+      allow delete: if false;
+
+      match /tokens/{tokenId} {
+        allow get: if true;
+        allow list: if isQueueAdmin(queueId);
+        allow create: if isQueueAdmin(queueId)
+          || validPublicTokenCreate(queueId);
+        allow update: if isQueueAdmin(queueId)
+          || publicTokenCancel();
+        allow delete: if false;
+      }
+    }
+
+    match /smsLogs/{logId} {
+      allow read, write: if signedIn();
+    }
+  }
+}
