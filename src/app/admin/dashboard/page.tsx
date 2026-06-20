@@ -263,105 +263,81 @@ export default function AdminDashboardPage() {
   const progressPct = office && office.dailyLimit > 0 ? Math.min((totalIssued / office.dailyLimit) * 100, 100) : 0;
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: "#f5f2ed" }}>
+    <div className="min-h-screen pb-28" style={{ background: "#f5f2ed" }}>
       {/* HEADER */}
-      <div className="bg-white px-4 pt-4 pb-3">
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-[#1e1b4b] flex items-center justify-center shrink-0">
-                <span className="text-white font-bold text-sm">L</span>
-              </div>
-              <div className="min-w-0">
-                {allOffices.length > 1 ? (
-                  <div className="relative">
-                    <button
-                      onClick={() => setOfficeDropdown(!officeDropdown)}
-                      className="flex items-center gap-1.5 hover:opacity-80"
-                    >
-                      <h1 className="font-semibold text-sm text-[#1c1917] truncate max-w-[160px]">{office?.name}</h1>
-                      <svg className="w-3.5 h-3.5 text-[#a8a29e] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                    </button>
-                    {officeDropdown && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setOfficeDropdown(false)} />
-                        <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-[#e7e5e4] py-1 min-w-[200px] z-20">
-                          <p className="px-3 py-1.5 text-[10px] font-semibold text-[#a8a29e] uppercase tracking-wider">{t("switch_office")}</p>
-                          {allOffices.map((o) => (
-                            <button
-                              key={o.id}
-                              onClick={() => switchOffice(o.id)}
-                              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#f5f2ed] transition-colors ${o.id === office?.id ? "bg-[#f5f2ed] text-[#1e1b4b] font-semibold" : "text-[#78716c]"}`}
-                            >
-                              <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${o.id === office?.id ? "bg-[#1e1b4b] text-white" : "bg-[#e7e5e4] text-[#a8a29e]"}`}>
-                                {o.name.charAt(0)}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate">{o.name}</p>
-                                <p className="text-[10px] text-[#a8a29e] font-mono">{o.code}</p>
-                              </div>
-                            </button>
-                          ))}
-                          <div className="border-t border-[#e7e5e4] mt-1 pt-1">
-                            <Link href="/admin/onboard" className="flex items-center gap-2 px-3 py-2 text-sm text-[#d97706] hover:bg-[#f5f2ed] transition-colors">
-                              <span className="w-5 h-5 rounded-md bg-[#d97706]/10 flex items-center justify-center text-xs">+</span>
-                              {t("new_queue")}
-                            </Link>
-                          </div>
+      <div className="bg-white px-4 pt-4 pb-3 shadow-sm">
+        <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-xl bg-[#1e1b4b] flex items-center justify-center shrink-0 shadow-sm">
+              <span className="text-white font-bold text-base">L</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              {allOffices.length > 1 ? (
+                <div className="relative">
+                  <button onClick={() => setOfficeDropdown(!officeDropdown)} className="flex items-center gap-1.5 hover:opacity-80 w-full">
+                    <h1 className="font-semibold text-base text-[#1c1917] truncate max-w-[180px]">{office?.name}</h1>
+                    <svg className="w-4 h-4 text-[#a8a29e] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {officeDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setOfficeDropdown(false)} />
+                      <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-[#e7e5e4] py-1 min-w-[220px] z-20">
+                        <p className="px-4 py-2 text-[11px] font-semibold text-[#a8a29e] uppercase tracking-wider">{t("switch_office")}</p>
+                        {allOffices.map((o) => (
+                          <button key={o.id} onClick={() => switchOffice(o.id)} className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 hover:bg-[#f5f2ed] transition-colors ${o.id === office?.id ? "bg-[#f5f2ed] text-[#1e1b4b] font-semibold" : "text-[#78716c]"}`}>
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${o.id === office?.id ? "bg-[#1e1b4b] text-white" : "bg-[#e7e5e4] text-[#a8a29e]"}`}>{o.name.charAt(0)}</div>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{o.name}</p>
+                              <p className="text-[11px] text-[#a8a29e] font-mono">{o.code}</p>
+                            </div>
+                          </button>
+                        ))}
+                        <div className="border-t border-[#e7e5e4] mt-1 pt-1">
+                          <Link href="/admin/onboard" className="flex items-center gap-3 px-4 py-3 text-sm text-[#d97706] font-medium hover:bg-[#f5f2ed] transition-colors">
+                            <span className="w-8 h-8 rounded-lg bg-[#d97706]/10 flex items-center justify-center text-base font-bold">+</span>
+                            {t("new_queue")}
+                          </Link>
                         </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <h1 className="font-semibold text-sm text-[#1c1917]">{office?.name}</h1>
-                )}
-                <p className="text-[11px] text-[#a8a29e] font-mono">#{office?.code}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={async () => {
-                  if (!office) return;
-                  const next = !isPublic;
-                  try {
-                    await updateDoc(doc(getDb()!, "offices", office.id), { public: next });
-                    setIsPublic(next);
-                  } catch {}
-                }}
-                className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                  isPublic ? "bg-[#059669]/10 text-[#059669]" : "bg-[#f5f2ed] text-[#a8a29e]"
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </button>
-              <button onClick={() => setLang(lang === "en" ? "hi" : "en")} className="w-7 h-7 rounded-lg bg-[#f5f2ed] flex items-center justify-center text-[11px] font-bold text-[#78716c]">{lang === "en" ? "हि" : "EN"}</button>
-              <button onClick={() => router.push("/admin/settings")} className="w-7 h-7 rounded-lg bg-[#f5f2ed] flex items-center justify-center text-[#a8a29e]">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              </button>
-              <button onClick={() => { signOut(); router.push("/admin/login"); }} className="w-7 h-7 rounded-lg bg-[#f5f2ed] flex items-center justify-center text-[#a8a29e]">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-              </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <h1 className="font-semibold text-base text-[#1c1917]">{office?.name}</h1>
+              )}
+              <p className="text-[12px] text-[#a8a29e] font-mono">#{office?.code}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {isPaused && <span className="badge bg-[#d97706]/10 text-[#d97706]"><span className="w-1.5 h-1.5 rounded-full bg-[#d97706] mr-1" />{t("paused")}</span>}
-            {!isOpen && <span className="badge bg-[#dc2626]/10 text-[#dc2626]"><span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] mr-1" />{t("closed")}</span>}
-            {isOpen && !isPaused && !isClosedToday && (
-              <span className="badge bg-[#059669]/10 text-[#059669]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#059669] mr-1" />
-                {`${todaySchedule?.open ?? "--:--"} – ${todaySchedule?.close ?? "--:--"}`}
-              </span>
-            )}
-            {isOpen && !isPaused && isClosedToday && (
-              <span className="badge bg-[#dc2626]/10 text-[#dc2626]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] mr-1" />{t("closed_today")}
-              </span>
-            )}
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={async () => { if (!office) return; const next = !isPublic; try { await updateDoc(doc(getDb()!, "offices", office.id), { public: next }); setIsPublic(next); } catch {} }}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isPublic ? "bg-[#059669]/10 text-[#059669]" : "bg-[#f5f2ed] text-[#a8a29e] hover:text-[#78716c]"}`}
+              title={isPublic ? t("public") : t("privateLabel")}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </button>
+            <button onClick={() => setLang(lang === "en" ? "hi" : "en")} className="w-10 h-10 rounded-xl bg-[#f5f2ed] flex items-center justify-center text-xs font-bold text-[#78716c] hover:text-[#1c1917]">{lang === "en" ? "हि" : "EN"}</button>
+            <button onClick={() => router.push("/admin/settings")} className="w-10 h-10 rounded-xl bg-[#f5f2ed] flex items-center justify-center text-[#a8a29e] hover:text-[#78716c]">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+            <button onClick={() => { signOut(); router.push("/admin/login"); }} className="w-10 h-10 rounded-xl bg-[#f5f2ed] flex items-center justify-center text-[#a8a29e] hover:text-[#dc2626]">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
           </div>
+        </div>
+        <div className="max-w-lg mx-auto mt-2 flex items-center gap-2 flex-wrap">
+          {isPaused && <span className="badge bg-[#d97706]/10 text-[#d97706]"><span className="w-1.5 h-1.5 rounded-full bg-[#d97706] mr-1" />{t("paused")}</span>}
+          {!isOpen && <span className="badge bg-[#dc2626]/10 text-[#dc2626]"><span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] mr-1" />{t("closed")}</span>}
+          {isOpen && !isPaused && !isClosedToday && (
+            <span className="badge bg-[#059669]/10 text-[#059669]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#059669] mr-1" />{`${todaySchedule?.open ?? "--:--"} – ${todaySchedule?.close ?? "--:--"}`}
+            </span>
+          )}
+          {isOpen && !isPaused && isClosedToday && (
+            <span className="badge bg-[#dc2626]/10 text-[#dc2626]"><span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] mr-1" />{t("closed_today")}</span>
+          )}
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 -mt-2 space-y-3">
+      <div className="max-w-lg mx-auto px-4 mt-3 space-y-3">
         {actionError && (
           <div className="bg-[#dc2626]/10 border border-[#dc2626]/20 text-[#dc2626] px-4 py-3 rounded-xl text-sm flex items-center gap-2">
             <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -371,38 +347,38 @@ export default function AdminDashboardPage() {
 
         {!office ? (
           <div className="card text-center py-16">
-            <div className="w-14 h-14 bg-[#f5f2ed] rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-7 h-7 text-[#a8a29e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            <div className="w-16 h-16 bg-[#f5f2ed] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-[#a8a29e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
             </div>
-            <p className="text-[#78716c] text-sm mb-4">{t("no_office")}</p>
+            <p className="text-[#78716c] text-base mb-4">{t("no_office")}</p>
             <Link href="/admin/onboard" className="btn-primary">{t("register")}</Link>
           </div>
         ) : (
           <>
             {/* NOW SERVING */}
-            <div className={`card pb-4 ${servingToken ? "ring-2 ring-[#d97706]/30" : ""}`}>
+            <div className={`card pb-5 ${servingToken ? "ring-2 ring-[#059669]/30" : ""}`}>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-[#a8a29e] uppercase tracking-wider">{t("now_serving")}</p>
                 {!servingToken && currentToken > 0 && (
-                  <span className="text-[10px] font-medium text-[#d97706] bg-[#d97706]/10 px-2 py-0.5 rounded-full">{t("call_next")} →</span>
+                  <span className="text-[11px] font-medium text-[#d97706] bg-[#d97706]/10 px-2.5 py-1 rounded-full">{t("call_next")} →</span>
                 )}
               </div>
-              <p className="token-display text-center">{servingToken ? servingToken.number : (currentToken || "—")}</p>
+              <p className="text-5xl font-black text-center text-[#1e1b4b] tracking-tight">{servingToken ? servingToken.number : (currentToken || "—")}</p>
               {servingToken ? (
-                <div className="text-center mt-2 mb-4">
-                  <p className="text-[#1c1917] font-semibold text-base">{servingToken.name}</p>
+                <div className="text-center mt-3 mb-2">
+                  <p className="text-[#1c1917] font-semibold text-lg">{servingToken.name}</p>
                   {servingToken.calledAt && (
                     <p className="text-xs text-[#a8a29e] mt-0.5">
                       ⏱ {servingToken.calledAt?.toDate?.().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   )}
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    <button onClick={handleMarkServed} disabled={actionLoading} className="btn-primary !bg-[#059669] hover:!bg-[#047857] !min-h-[44px] !text-sm shadow-md shadow-[#059669]/20">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                  <div className="grid grid-cols-2 gap-3 mt-5">
+                    <button onClick={handleMarkServed} disabled={actionLoading} className="btn-primary !bg-[#059669] hover:!bg-[#047857] !min-h-[52px] !text-base shadow-md shadow-[#059669]/20">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                       {t("mark_served")}
                     </button>
-                    <button onClick={handleMarkAbsent} disabled={actionLoading} className="btn-outline !border-[#dc2626]/30 !text-[#dc2626] hover:!bg-[#dc2626]/5 !min-h-[44px] !text-sm">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                    <button onClick={handleMarkAbsent} disabled={actionLoading} className="btn-outline !border-[#dc2626]/30 !text-[#dc2626] hover:!bg-[#dc2626]/5 !min-h-[52px] !text-base">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                       {t("mark_absent")}
                     </button>
                   </div>
@@ -414,25 +390,19 @@ export default function AdminDashboardPage() {
 
             {/* CALL NEXT */}
             {!servingToken && (
-              <button
-                onClick={handleCallNext}
-                disabled={actionLoading || !isOpen || isPaused}
-                className="btn-primary w-full text-base"
-              >
+              <button onClick={handleCallNext} disabled={actionLoading || !isOpen || isPaused}
+                className="w-full bg-[#1e1b4b] text-white rounded-2xl py-4 px-6 text-lg font-bold shadow-lg shadow-[#1e1b4b]/20 hover:bg-[#2d2a5e] transition-all disabled:opacity-40 flex items-center justify-center gap-3">
                 {actionLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                    {t("call_next")}
-                  </span>
+                  <><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>{t("call_next")}</>
                 )}
               </button>
             )}
 
             {/* STATS + PROGRESS */}
             <div className="card pb-4">
-              <div className="grid grid-cols-5 gap-1">
+              <div className="grid grid-cols-5 gap-2">
                 {[
                   { label: t("total_tokens"), value: totalIssued, color: "text-[#1e1b4b]" },
                   { label: t("target"), value: office.dailyLimit ?? "—", color: "text-[#78716c]" },
@@ -440,13 +410,13 @@ export default function AdminDashboardPage() {
                   { label: t("served_tokens"), value: served.length, color: "text-[#059669]" },
                   { label: t("avg_time"), value: `${avgTime}m`, color: "text-[#78716c]" },
                 ].map((stat, i) => (
-                  <div key={i} className="text-center">
-                    <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
-                    <p className="text-[9px] text-[#a8a29e] font-medium uppercase tracking-wider mt-0.5">{stat.label}</p>
+                  <div key={i} className="text-center py-1">
+                    <p className={`text-2xl font-black ${stat.color} leading-tight`}>{stat.value}</p>
+                    <p className="text-[10px] text-[#a8a29e] font-medium uppercase tracking-wider mt-0.5">{stat.label}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 bg-[#f5f2ed] rounded-full h-1.5 overflow-hidden">
+              <div className="mt-3 bg-[#f5f2ed] rounded-full h-2 overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #1e1b4b, #d97706)" }} />
               </div>
             </div>
@@ -457,56 +427,36 @@ export default function AdminDashboardPage() {
                 <h2 className="text-sm font-semibold text-[#1c1917]">{t("next_5")}</h2>
                 <div className="flex items-center gap-2">
                   {qrDataUrl && (
-                    <button
-                      onClick={() => {
-                        if (!office) return;
-                        const url = getOfficeUrl(office.code);
-                        if (navigator.share) {
-                          navigator.share({ title: office.name, url });
-                        } else {
-                          navigator.clipboard.writeText(url);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        }
-                      }}
-                      className="text-[10px] text-[#d97706] bg-[#d97706]/10 px-2 py-1 rounded-full font-medium flex items-center gap-1"
-                    >
-                      {copied ? (
-                        <>{t("copied")}</>
-                      ) : (
-                        <><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>{t("share")}</>
-                      )}
+                    <button onClick={() => { if (!office) return; const url = getOfficeUrl(office.code); if (navigator.share) { navigator.share({ title: office.name, url }); } else { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } }}
+                      className="text-[11px] text-[#d97706] bg-[#d97706]/10 px-3 py-1.5 rounded-full font-medium flex items-center gap-1.5 hover:bg-[#d97706]/20 transition-colors">
+                      {copied ? <>{t("copied")}</> : <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>{t("share")}</>}
                     </button>
                   )}
-                  <span className="text-xs text-[#a8a29e]">{waiting.length > 0 ? `${waiting.length} ${t("rest")}` : ""}</span>
+                  <span className="text-xs text-[#a8a29e] font-medium">{waiting.length > 0 ? `${waiting.length} ${t("rest")}` : ""}</span>
                 </div>
               </div>
               {upcoming.length === 0 ? (
-                <div className="text-center py-6">
-                  <div className="w-10 h-10 bg-[#f5f2ed] rounded-xl flex items-center justify-center mx-auto mb-2">
-                    <svg className="w-5 h-5 text-[#d6d3d1]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-[#f5f2ed] rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-[#d6d3d1]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   </div>
                   <p className="text-sm text-[#a8a29e]">{t("no_waiting")}</p>
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {upcoming.map((tkn, i) => (
-                    <div key={tkn.id} className={`flex items-center justify-between p-2.5 rounded-xl transition-colors ${
-                      i === 0 ? "bg-[#d97706]/5 border border-[#d97706]/10" : "hover:bg-[#f5f2ed]"
-                    }`}>
-                      <div className="flex items-center gap-2.5">
-                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                          i === 0 ? "bg-[#1e1b4b] text-white" : "bg-[#f5f2ed] text-[#78716c]"
-                        }`}>{tkn.number}</span>
+                    <div key={tkn.id} className={`flex items-center justify-between p-3 rounded-xl transition-colors ${i === 0 ? "bg-[#d97706]/5 border border-[#d97706]/10" : "hover:bg-[#f5f2ed]"}`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${i === 0 ? "bg-[#1e1b4b] text-white shadow-sm" : "bg-[#f5f2ed] text-[#78716c]"}`}>{tkn.number}</span>
                         <div>
                           <p className="text-sm font-medium text-[#1c1917]">{tkn.name}</p>
-                          <p className="text-[11px] text-[#a8a29e]">
+                          <p className="text-[12px] text-[#a8a29e]">
                             {tkn.issuedAt?.toDate?.().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) || ""}
-                            {tkn.serviceType === "Priority" && <span className="ml-1.5 text-[9px] text-[#d97706] bg-[#d97706]/10 px-1.5 py-0.5 rounded-full">{lang === "hi" ? "प्राथमिकता" : "Priority"}</span>}
+                            {tkn.serviceType === "Priority" && <span className="ml-1.5 text-[10px] text-[#d97706] bg-[#d97706]/10 px-1.5 py-0.5 rounded-full font-medium">{lang === "hi" ? "प्राथमिकता" : "Priority"}</span>}
                           </p>
                         </div>
                       </div>
-                      {i === 0 && <span className="text-[10px] font-semibold text-[#d97706] bg-[#d97706]/10 px-2 py-1 rounded-full">{t("next")}</span>}
+                      {i === 0 && <span className="text-[11px] font-semibold text-[#d97706] bg-[#d97706]/10 px-3 py-1 rounded-full">{t("next")}</span>}
                     </div>
                   ))}
                 </div>
@@ -515,22 +465,14 @@ export default function AdminDashboardPage() {
 
             {/* QR CARD */}
             {qrDataUrl && (
-              <div className="flex items-center gap-3 bg-white rounded-2xl p-3" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.02)" }}>
-                <img src={qrDataUrl} alt="QR" className="w-10 h-10 rounded-lg border border-[#e7e5e4] shrink-0" />
+              <div className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-[#e7e5e4]">
+                <img src={qrDataUrl} alt="QR" className="w-12 h-12 rounded-xl border border-[#e7e5e4] shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-[#a8a29e]">{t("qr")}</p>
-                  <p className="text-sm font-mono text-[#1c1917]">{office?.code}</p>
+                  <p className="text-sm font-mono text-[#1c1917] font-medium">{office?.code}</p>
                 </div>
-                <button
-                  onClick={() => {
-                    if (!office) return;
-                    const url = getOfficeUrl(office.code);
-                    navigator.clipboard.writeText(url);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                  className="text-xs font-medium text-[#d97706] bg-[#d97706]/10 px-3 py-1.5 rounded-full"
-                >
+                <button onClick={() => { if (!office) return; const url = getOfficeUrl(office.code); navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                  className="text-xs font-medium text-[#d97706] bg-[#d97706]/10 px-4 py-2 rounded-full hover:bg-[#d97706]/20 transition-colors">
                   {copied ? t("copied") : t("share")}
                 </button>
               </div>
@@ -540,46 +482,40 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* BOTTOM NAV */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e7e5e4] z-50">
-        <div className="max-w-lg mx-auto flex items-center justify-around px-2 py-1">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e7e5e4] z-50 safe-bottom">
+        <div className="max-w-lg mx-auto flex items-center justify-around px-2 py-2">
           {[
             {
               icon: isPaused
-                ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+                ? <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                : <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
               label: isPaused ? t("resume") : t("pause"),
               onClick: handleTogglePause,
               disabled: !isOpen,
               active: isPaused,
             },
             {
-              icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>,
+              icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>,
               label: t("priority"),
               onClick: handlePriorityToken,
               disabled: actionLoading || !isOpen,
             },
             {
-              icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>,
+              icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>,
               label: t("end_day"),
               onClick: handleEndDay,
               disabled: !isOpen,
             },
             {
-              icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+              icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
               label: t("reports"),
               onClick: () => router.push("/admin/reports"),
             },
           ].map((item, i) => (
-            <button
-              key={i}
-              onClick={item.onClick}
-              disabled={item.disabled}
-              className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1.5 rounded-xl transition-colors disabled:opacity-30 ${
-                item.active ? "text-[#d97706]" : "text-[#78716c] hover:text-[#1c1917]"
-              }`}
-            >
+            <button key={i} onClick={item.onClick} disabled={item.disabled}
+              className={`flex flex-col items-center gap-1 min-w-[64px] py-2 rounded-xl transition-colors disabled:opacity-30 ${item.active ? "text-[#d97706]" : "text-[#78716c] hover:text-[#1c1917]"}`}>
               {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[11px] font-semibold">{item.label}</span>
             </button>
           ))}
         </div>
