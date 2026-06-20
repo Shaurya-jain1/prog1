@@ -12,12 +12,14 @@ import Link from "next/link";
 const LANG: Record<string, Record<string, string>> = {
   en: {
     title: "Create Your Queue", name: "Organization Name", district: "District", state: "State",
-    phone: "Contact Phone", submit: "Create Queue", creating: "Creating...", error: "Something went wrong",
+    phone: "Contact Phone", price: "Appointment Price (₹)", price_hint: "Leave 0 for free",
+    submit: "Create Queue", creating: "Creating...", error: "Something went wrong",
     success: "Queue created! Code:", later: "I'll do this later",
   },
   hi: {
     title: "अपनी कतार बनाएं", name: "संगठन का नाम", district: "ज़िला", state: "राज्य",
-    phone: "संपर्क फ़ोन", submit: "कतार बनाएं", creating: "बना रहा है...", error: "कुछ गलत हो गया",
+    phone: "संपर्क फ़ोन", price: "अपॉइंटमेंट मूल्य (₹)", price_hint: "मुफ्त के लिए 0 छोड़ें",
+    submit: "कतार बनाएं", creating: "बना रहा है...", error: "कुछ गलत हो गया",
     success: "कतार बन गई! कोड:", later: "बाद में करूंगा",
   },
 };
@@ -28,6 +30,7 @@ export default function OnboardPage() {
   const c = LANG[lang];
   const [name, setName] = useState(""); const [district, setDistrict] = useState("");
   const [state_, setState] = useState(""); const [phone, setPhone] = useState("");
+  const [appointmentPrice, setAppointmentPrice] = useState("");
   const [loading, setLoading] = useState(false); const [error, setError] = useState("");
   const [createdCode, setCreatedCode] = useState("");
   const { user } = useAuth();
@@ -45,6 +48,7 @@ export default function OnboardPage() {
         name: name.trim(), district: district.trim(), state: state_.trim(),
         adminPhone: phone.trim(), adminUid: user.uid, code, public: false,
         serviceTypes: ["General"], dailyLimit: 100,
+        appointmentPrice: appointmentPrice ? Number(appointmentPrice) : 0,
         schedule: { Monday: { open: "09:00", close: "17:00" }, Tuesday: { open: "09:00", close: "17:00" }, Wednesday: { open: "09:00", close: "17:00" }, Thursday: { open: "09:00", close: "17:00" }, Friday: { open: "09:00", close: "17:00" }, Saturday: null, Sunday: null },
         openDays: ["Monday","Tuesday","Wednesday","Thursday","Friday"],
         openTime: "09:00", closeTime: "17:00", createdAt: serverTimestamp(),
@@ -86,6 +90,7 @@ export default function OnboardPage() {
             <div><label className="label">{c.state}</label><input className="input" value={state_} onChange={e => setState(e.target.value)} placeholder="Delhi" /></div>
           </div>
           <div><label className="label">{c.phone}</label><input className="input" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="9876543210" type="tel" /></div>
+          <div><label className="label">{c.price} <span style={{fontWeight:400,color:"#a8a29e",fontSize:12}}>({c.price_hint})</span></label><input className="input" value={appointmentPrice} onChange={e => setAppointmentPrice(e.target.value.replace(/\D/g, ""))} placeholder="0" type="tel" inputMode="numeric" /></div>
           <button onClick={handleSubmit} disabled={loading} className="btn-primary w-full">
             {loading ? <span className="flex items-center gap-2"><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />{c.creating}</span> : c.submit}
           </button>

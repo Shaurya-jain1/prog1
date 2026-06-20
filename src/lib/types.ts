@@ -17,6 +17,7 @@ export interface Office {
   public: boolean;
   serviceTypes: string[];
   dailyLimit: number;
+  appointmentPrice?: number;
   schedule: Record<string, DaySchedule | null>;
   createdAt: any;
 }

@@ -9,13 +9,17 @@ import { getTodayStr, normalizeCode } from "@/lib/utils";
 import { decryptId } from "@/lib/crypto";
 
 const L: Record<string, Record<string, string>> = {
-  en: { title: "Join Queue", now: "Now Serving", today: "Today", name: "Your Name", phone: "Phone", get: "Get Token", send: "Issuing...", your: "Your Token", pos: "Position", wait: "Est. Wait", min: "min", leave: "Track your turn live. We'll notify you when it's near.", cancel: "Cancel", view: "View Status", err_name: "Enter your name", err_phone: "Enter 10-digit phone", err_closed: "Queue is closed", err_paused: "Queue is paused", err_limit: "Limit reached today", err_generic: "Error", notFound: "Organization not found", notFoundDesc: "This code is not valid", loading: "Loading..." },
-  hi: { title: "कतार में शामिल हों", now: "अब सेवा", today: "आज", name: "आपका नाम", phone: "मोबाइल", get: "टोकन लें", send: "जारी कर रहा है...", your: "आपका टोकन", pos: "स्थिति", wait: "अनुमानित प्रतीक्षा", min: "मिनट", leave: "अपनी बारी लाइव ट्रैक करें। हम सूचित करेंगे।", cancel: "रद्द करें", view: "स्थिति देखें", err_name: "अपना नाम दर्ज करें", err_phone: "10 अंकों का नंबर दर्ज करें", err_closed: "कतार बंद है", err_paused: "कतार रोक दी गई है", err_limit: "आज की सीमा पूरी", err_generic: "त्रुटि", notFound: "संगठन नहीं मिला", notFoundDesc: "यह कोड मान्य नहीं है", loading: "लोड हो रहा है..." },
+  en: { title: "Join Queue", now: "Now Serving", today: "Today", name: "Your Name", phone: "Phone", serviceType: "Service Type", general: "Free Token", paid: "Paid Appointment", get: "Get Token", book: "Book Appointment", pay: "Pay Now", processing: "Processing...", your: "Your Token", pos: "Position", wait: "Est. Wait", min: "min", leave: "Track your turn live. We'll notify you when it's near.", cancel: "Cancel", view: "View Status", err_name: "Enter your name", err_phone: "Enter 10-digit phone", err_closed: "Queue is closed", err_paused: "Queue is paused", err_limit: "Limit reached today", err_generic: "Error", notFound: "Organization not found", notFoundDesc: "This code is not valid", loading: "Loading...", paid_desc: "Skip the line! Book a paid appointment for priority service.", price: "Price" },
+  hi: { title: "कतार में शामिल हों", now: "अब सेवा", today: "आज", name: "आपका नाम", phone: "मोबाइल", serviceType: "सेवा प्रकार", general: "फ्री टोकन", paid: "सशुल्क अपॉइंटमेंट", get: "टोकन लें", book: "अपॉइंटमेंट बुक करें", pay: "भुगतान करें", processing: "प्रोसेस हो रहा है...", your: "आपका टोकन", pos: "स्थिति", wait: "अनुमानित प्रतीक्षा", min: "मिनट", leave: "अपनी बारी लाइव ट्रैक करें। हम सूचित करेंगे।", cancel: "रद्द करें", view: "स्थिति देखें", err_name: "अपना नाम दर्ज करें", err_phone: "10 अंकों का नंबर दर्ज करें", err_closed: "कतार बंद है", err_paused: "कतार रोक दी गई है", err_limit: "आज की सीमा पूरी", err_generic: "त्रुटि", notFound: "संगठन नहीं मिला", notFoundDesc: "यह कोड मान्य नहीं है", loading: "लोड हो रहा है...", paid_desc: "लाइन छोड़ें! प्राथमिकता सेवा के लिए सशुल्क अपॉइंटमेंट बुक करें।", price: "कीमत" },
 };
 
-interface Office { id: string; name: string; code: string; district: string; state: string; dailyLimit: number; serviceTypes: string[]; }
+interface Office { id: string; name: string; code: string; district: string; state: string; dailyLimit: number; serviceTypes: string[]; appointmentPrice?: number; }
 interface QueueData { isOpen: boolean; isPaused: boolean; currentToken: number; totalIssued: number; }
 interface Token { id: string; number: number; name: string; status: string; issuedAt: any; }
+
+declare global {
+  interface Window { Razorpay?: any; }
+}
 
 export default function QueueJoinPage() {
   const params = useParams();
@@ -27,6 +31,7 @@ export default function QueueJoinPage() {
   const [office, setOffice] = useState<Office | null | undefined>(undefined);
   const [queue, setQueue] = useState<QueueData | null>(null);
   const [name, setName] = useState(""); const [phone, setPhone] = useState("");
+  const [serviceType, setServiceType] = useState<"General" | "Paid Appointment">("General");
   const [loading, setLoading] = useState(false); const [error, setError] = useState("");
   const [token, setToken] = useState<Token | null>(null);
   const initDone = useRef(false);
@@ -48,54 +53,111 @@ export default function QueueJoinPage() {
     return () => { uq?.(); };
   }, [normalizedCode]);
 
-  const submit = useCallback(async () => {
+  const issueToken = useCallback(async (paymentId?: string) => {
+    if (!office) return;
+    const db = getDb()!;
+    const today = getTodayStr();
+    const qid = `${office.id}_${today}`;
+    const qr = doc(db, "queues", qid);
+    const ref = doc(collection(db, "queues", qid, "tokens"));
+    return await runTransaction(db, async (transaction) => {
+      const queueSnap = await transaction.get(qr);
+      const qd = queueSnap.exists() ? queueSnap.data() : { isOpen: true, isPaused: false, currentToken: 0, totalIssued: 0 };
+      if (!qd.isOpen) throw new Error(t("err_closed"));
+      if (qd.isPaused) throw new Error(t("err_paused"));
+      if (office.dailyLimit && qd.totalIssued >= office.dailyLimit) throw new Error(t("err_limit"));
+      const num = (qd.totalIssued || 0) + 1;
+      const issuedAt = Timestamp.now();
+      const tokenData: Record<string, any> = {
+        number: num, name: name.trim(), phone: `+91${phone}`,
+        serviceType, status: "waiting", issuedAt, waitMinutes: 0,
+      };
+      if (paymentId) tokenData.paymentId = paymentId;
+      transaction.set(ref, tokenData);
+      if (queueSnap.exists()) {
+        transaction.update(qr, { totalIssued: num });
+      } else {
+        transaction.set(qr, { date: today, officeId: office.id, isOpen: true, isPaused: false, currentToken: 0, totalIssued: num });
+      }
+      return { id: ref.id, number: num, name: name.trim(), status: "waiting", issuedAt };
+    }) as { id: string; number: number; name: string; status: string; issuedAt: Timestamp; };
+  }, [office, name, phone, serviceType, t]);
+
+  const handleFree = useCallback(async () => {
     setError("");
     if (!name.trim()) { setError(t("err_name")); return; }
     if (!phone.match(/^\d{10}$/)) { setError(t("err_phone")); return; }
-    if (!office) return;
-    if (queue && !queue.isOpen) { setError(t("err_closed")); return; }
-    if (queue?.isPaused) { setError(t("err_paused")); return; }
+    if (!office || !queue) return;
+    if (!queue.isOpen) { setError(t("err_closed")); return; }
+    if (queue.isPaused) { setError(t("err_paused")); return; }
     setLoading(true);
     try {
-      const db = getDb()!;
-      const today = getTodayStr();
-      const qid = `${office.id}_${today}`;
-      const qr = doc(db, "queues", qid);
-      const ref = doc(collection(db, "queues", qid, "tokens"));
-      const issuedToken = await runTransaction(db, async (transaction) => {
-        const queueSnap = await transaction.get(qr);
-        const qd = queueSnap.exists()
-          ? queueSnap.data()
-          : { isOpen: true, isPaused: false, currentToken: 0, totalIssued: 0 };
-        if (!qd.isOpen) throw new Error(t("err_closed"));
-        if (qd.isPaused) throw new Error(t("err_paused"));
-        if (office.dailyLimit && qd.totalIssued >= office.dailyLimit) {
-          throw new Error(t("err_limit"));
-        }
-
-        const num = (qd.totalIssued || 0) + 1;
-        const issuedAt = Timestamp.now();
-        const data = {
-          number: num,
-          name: name.trim(),
-          phone: `+91${phone}`,
-          serviceType: "General",
-          status: "waiting",
-          issuedAt,
-          waitMinutes: 0,
-        };
-        transaction.set(ref, data);
-        if (queueSnap.exists()) {
-          transaction.update(qr, { totalIssued: num });
-        } else {
-          transaction.set(qr, { date: today, officeId: office.id, isOpen: true, isPaused: false, currentToken: 0, totalIssued: num });
-        }
-        return { id: ref.id, number: num, name: name.trim(), status: "waiting", issuedAt };
-      });
-      setToken(issuedToken);
+      const issuedToken = await issueToken();
+      if (issuedToken) setToken(issuedToken);
     } catch (err: any) { setError(err.message || t("err_generic")); }
     setLoading(false);
-  }, [office, queue, name, phone, t]);
+  }, [office, queue, name, phone, issueToken, t]);
+
+  const handlePaid = useCallback(async () => {
+    setError("");
+    if (!name.trim()) { setError(t("err_name")); return; }
+    if (!phone.match(/^\d{10}$/)) { setError(t("err_phone")); return; }
+    if (!office || !queue) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: (office.appointmentPrice || 0),
+          currency: "INR",
+          receipt: `${office.id}_${Date.now()}`,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Payment failed");
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: data.order.amount,
+        currency: data.order.currency,
+        name: office.name,
+        description: "Paid Appointment",
+        order_id: data.order.id,
+        handler: async (response: any) => {
+          const verify = await fetch("/api/verify-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+          const verifyData = await verify.json();
+          if (!verifyData.success) throw new Error("Payment verification failed");
+          setServiceType("Paid Appointment");
+          const issuedToken = await issueToken(response.razorpay_payment_id);
+          if (issuedToken) setToken(issuedToken);
+        },
+        modal: {
+          ondismiss: () => { setLoading(false); },
+        },
+        theme: { color: "#1e1b4b" },
+        prefill: { name: name.trim(), contact: phone, email: "" },
+      };
+
+      if (typeof window.Razorpay === "undefined") {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = () => { const rzp = new window.Razorpay(options); rzp.open(); };
+        document.body.appendChild(script);
+      } else {
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      }
+    } catch (err: any) { setError(err.message || t("err_generic")); setLoading(false); }
+  }, [office, queue, name, phone, issueToken, t]);
 
   const cancel = useCallback(async () => {
     if (!token || !office) return;
@@ -144,6 +206,8 @@ export default function QueueJoinPage() {
     );
   }
 
+  const hasPaid = office?.appointmentPrice && office.appointmentPrice > 0;
+
   return (
     <div className="min-h-screen" style={{ background: "#f2f2f7" }}>
       <div className="max-w-sm mx-auto px-4 py-8">
@@ -174,7 +238,40 @@ export default function QueueJoinPage() {
           <div className="card animate-slide-up space-y-4 shadow-xl shadow-black/5">
             <div><label className="label">{t("name")}</label><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Rajesh Kumar" /></div>
             <div><label className="label">{t("phone")}</label><input className="input" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="9876543210" maxLength={10} type="tel" inputMode="numeric" /></div>
-            <button onClick={submit} disabled={loading} className="btn-primary w-full">{loading ? (<span className="flex items-center gap-2"><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t("send")}</span>) : t("get")}</button>
+
+            {hasPaid && (
+              <div className="space-y-2">
+                <label className="label">{t("serviceType")}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setServiceType("General")} className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${serviceType === "General" ? "border-[#1e1b4b] bg-[#1e1b4b]/5 text-[#1e1b4b]" : "border-[#e7e5e4] text-[#78716c]"}`}>
+                    <div className="text-lg mb-0.5">🎫</div>
+                    {t("general")}
+                  </button>
+                  <button onClick={() => setServiceType("Paid Appointment")} className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${serviceType === "Paid Appointment" ? "border-[#d97706] bg-[#d97706]/5 text-[#d97706]" : "border-[#e7e5e4] text-[#78716c]"}`}>
+                    <div className="text-lg mb-0.5">⭐</div>
+                    <div>{t("paid")}</div>
+                    <div className="text-[11px] opacity-70">₹{office?.appointmentPrice}</div>
+                  </button>
+                </div>
+                {serviceType === "Paid Appointment" && (
+                  <p className="text-xs text-[#d97706] flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {t("paid_desc")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {serviceType === "Paid Appointment" ? (
+              <button onClick={handlePaid} disabled={loading}
+                className="btn-accent w-full">
+                {loading ? <span className="flex items-center gap-2"><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t("processing")}</span> : <>{t("pay")} · ₹{office?.appointmentPrice}</>}
+              </button>
+            ) : (
+              <button onClick={handleFree} disabled={loading} className="btn-primary w-full">
+                {loading ? <span className="flex items-center gap-2"><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t("send")}</span> : t("get")}
+              </button>
+            )}
           </div>
         )}
       </div>
