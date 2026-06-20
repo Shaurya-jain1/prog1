@@ -49,8 +49,6 @@ const COPY: Record<string, any> = {
   },
 };
 
-const ORG_PILLS = ["Apollo Clinics","SBI Branch","e-District","Haldiram's","Naturals Salon","BigBasket","District Hospital","Ration Shop","Aadhaar Center"];
-
 export default function Home() {
   const [lang, setLang] = useState<"en" | "hi">("en");
   const [scrolled, setScrolled] = useState(false);
@@ -146,17 +144,6 @@ export default function Home() {
           <p style={{marginTop:12,fontSize:13,color:"var(--text-tertiary)"}}>
             <Link href="/find" style={{color:"var(--color-accent)",fontWeight:500,textDecoration:"none"}}>{c.findLink}</Link>
           </p>
-        </div>
-      </section>
-
-      {/* Marquee */}
-      <section className="lg-section" style={{padding:"20px 0",overflow:"hidden"}}>
-        <div style={{overflow:"hidden"}}>
-          <div className="marquee-track" style={{display:"flex",gap:8,width:"max-content",animation:"marquee 30s linear infinite"}}>
-            {[...ORG_PILLS,...ORG_PILLS].map((name,i) => (
-              <span key={i} className="glass-pill">{name}</span>
-            ))}
-          </div>
         </div>
       </section>
 
