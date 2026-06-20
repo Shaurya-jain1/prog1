@@ -8,7 +8,7 @@ import { signOut } from "@/lib/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   doc, collection, query, where, limit, onSnapshot, updateDoc,
-  setDoc, getDocs, writeBatch, Timestamp, runTransaction,
+  setDoc, getDoc, getDocs, writeBatch, Timestamp, runTransaction,
 } from "firebase/firestore";
 import QRCode from "qrcode";
 import { getOfficeUrl, getTodayDayName, getTodayStr, normalizeCode } from "@/lib/utils";
@@ -144,8 +144,22 @@ export default function AdminDashboardPage() {
 
   const waiting = tokens.filter((t) => t.status === "waiting");
   const served = tokens.filter((t) => t.status === "served");
+  const absent = tokens.filter((t) => t.status === "absent");
   const avgTime = served.length > 0 ? Math.round(served.reduce((a, t) => a + (t.waitMinutes || 0), 0) / served.length) : 0;
   const upcoming = waiting.slice(0, 5);
+
+  const callToken = useCallback(async (tokenDoc: Token) => {
+    const db = getDb()!;
+    const queueRef = doc(db, "queues", todayQueueId);
+    const now = Timestamp.now();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "queues", todayQueueId, "tokens", tokenDoc.id), { status: "called", calledAt: now });
+    batch.update(queueRef, { currentToken: tokenDoc.number });
+    await batch.commit();
+    setCurrentToken(tokenDoc.number);
+    setServingToken({ ...tokenDoc, status: "called", calledAt: now });
+    setTokens((prev) => prev.map((t) => t.id === tokenDoc.id ? { ...t, status: "called", calledAt: now } : t));
+  }, [todayQueueId]);
 
   const handleCallNext = useCallback(async () => {
     if (!office || actionLoading) return;
@@ -153,24 +167,41 @@ export default function AdminDashboardPage() {
     setActionLoading(true);
     try {
       const db = getDb()!;
-      const queueRef = doc(db, "queues", todayQueueId);
       const tokensRef = collection(db, "queues", todayQueueId, "tokens");
-      const snapshot = await getDocs(query(tokensRef, where("status", "==", "waiting")));
-      const waitingTokens = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Token)).sort((a, b) => a.number - b.number);
-      if (waitingTokens.length > 0) {
-        const tokenDoc = waitingTokens[0];
-        const now = Timestamp.now();
-        const batch = writeBatch(db);
-        batch.update(doc(db, "queues", todayQueueId, "tokens", tokenDoc.id), { status: "called", calledAt: now });
-        batch.update(queueRef, { currentToken: tokenDoc.number });
-        await batch.commit();
-        setCurrentToken(tokenDoc.number);
-        setServingToken({ ...tokenDoc, status: "called", calledAt: now });
-        setTokens((prev) => prev.map((t) => t.id === tokenDoc.id ? { ...t, status: "called", calledAt: now } : t));
-      } else setActionError("No waiting tokens");
+      // Priority tokens first
+      const prioritySnap = await getDocs(query(tokensRef, where("status", "==", "waiting"), where("serviceType", "==", "Priority")));
+      const priorityTokens = prioritySnap.docs.map((d) => ({ id: d.id, ...d.data() } as Token)).sort((a, b) => a.number - b.number);
+      if (priorityTokens.length > 0) {
+        await callToken(priorityTokens[0]);
+      } else {
+        const snap = await getDocs(query(tokensRef, where("status", "==", "waiting")));
+        const waitingTokens = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Token)).sort((a, b) => a.number - b.number);
+        if (waitingTokens.length > 0) {
+          await callToken(waitingTokens[0]);
+        } else setActionError("No waiting tokens");
+      }
     } catch (err: any) { setActionError(err.message || "Error calling next"); }
     setActionLoading(false);
-  }, [office, todayQueueId, actionLoading]);
+  }, [office, todayQueueId, actionLoading, callToken]);
+
+  const handleCallByNumber = useCallback(async () => {
+    if (!office) return;
+    const input = prompt("Enter token number to call:");
+    if (!input) return;
+    const num = parseInt(input, 10);
+    if (isNaN(num)) { setActionError("Invalid number"); return; }
+    setActionError("");
+    setActionLoading(true);
+    try {
+      const db = getDb()!;
+      const tokensRef = collection(db, "queues", todayQueueId, "tokens");
+      const snap = await getDocs(query(tokensRef, where("number", "==", num), where("status", "==", "waiting")));
+      if (snap.empty) { setActionError(`Token #${num} not found or not waiting`); setActionLoading(false); return; }
+      const tokenDoc = { id: snap.docs[0].id, ...snap.docs[0].data() } as Token;
+      await callToken(tokenDoc);
+    } catch (err: any) { setActionError(err.message || "Error"); }
+    setActionLoading(false);
+  }, [office, todayQueueId, actionLoading, callToken]);
 
   const handleMarkAbsent = useCallback(async () => {
     if (!office || actionLoading) return;
@@ -207,6 +238,33 @@ export default function AdminDashboardPage() {
     } catch (err: any) { setActionError(err.message || "Error"); }
     setActionLoading(false);
   }, [office, todayQueueId, actionLoading]);
+
+  const handleReAddAbsent = useCallback(async (tokenId: string) => {
+    if (!office) return;
+    setActionError("");
+    try {
+      const db = getDb()!;
+      const today = getTodayStr();
+      const qid = `${office.id}_${today}`;
+      const queueRef = doc(db, "queues", qid);
+      const queueSnap = await getDoc(queueRef);
+      const qData = queueSnap.exists() ? queueSnap.data() : { totalIssued: 0 };
+      const newNumber = (qData.totalIssued || 0) + 1;
+      const tokenRef = doc(db, "queues", qid, "tokens", tokenId);
+      await runTransaction(db, async (transaction) => {
+        const qSnap = await transaction.get(queueRef);
+        const qd = qSnap.exists() ? qSnap.data() : { totalIssued: 0 };
+        const num = (qd.totalIssued || 0) + 1;
+        transaction.update(tokenRef, { status: "waiting", number: num, issuedAt: Timestamp.now() });
+        if (qSnap.exists()) {
+          transaction.update(queueRef, { totalIssued: num });
+        } else {
+          transaction.set(queueRef, { date: getTodayStr(), officeId: office.id, isOpen: true, isPaused: false, currentToken: 0, totalIssued: num });
+        }
+      });
+      setTokens((prev) => prev.map((t) => t.id === tokenId ? { ...t, status: "waiting", number: newNumber } : t));
+    } catch (err: any) { setActionError(err.message || "Error"); }
+  }, [office]);
 
   const handleTogglePause = useCallback(async () => {
     if (!office) return;
@@ -390,14 +448,21 @@ export default function AdminDashboardPage() {
 
             {/* CALL NEXT */}
             {!servingToken && (
-              <button onClick={handleCallNext} disabled={actionLoading || !isOpen || isPaused}
-                className="w-full bg-[#1e1b4b] text-white rounded-2xl py-4 px-6 text-lg font-bold shadow-lg shadow-[#1e1b4b]/20 hover:bg-[#2d2a5e] transition-all disabled:opacity-40 flex items-center justify-center gap-3">
-                {actionLoading ? (
-                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>{t("call_next")}</>
-                )}
-              </button>
+              <>
+                <button onClick={handleCallNext} disabled={actionLoading || !isOpen || isPaused}
+                  className="w-full bg-[#1e1b4b] text-white rounded-2xl py-4 px-6 text-lg font-bold shadow-lg shadow-[#1e1b4b]/20 hover:bg-[#2d2a5e] transition-all disabled:opacity-40 flex items-center justify-center gap-3">
+                  {actionLoading ? (
+                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>{t("call_next")}</>
+                  )}
+                </button>
+                <button onClick={handleCallByNumber} disabled={actionLoading || !isOpen || isPaused}
+                  className="w-full bg-white border-2 border-[#e7e5e4] text-[#78716c] rounded-2xl py-3 px-6 text-sm font-semibold hover:bg-[#f5f2ed] transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                  Call by #
+                </button>
+              </>
             )}
 
             {/* STATS + PROGRESS */}
@@ -462,6 +527,33 @@ export default function AdminDashboardPage() {
                 </div>
               )}
             </div>
+
+            {/* ABSENT */}
+            {absent.length > 0 && (
+              <div className="card pb-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-[#1c1917]">Absent ({absent.length})</h2>
+                </div>
+                <div className="space-y-1.5">
+                  {absent.slice(0, 5).map((tkn) => (
+                    <div key={tkn.id} className="flex items-center justify-between p-3 rounded-xl bg-[#dc2626]/5 border border-[#dc2626]/10">
+                      <div className="flex items-center gap-3">
+                        <span className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold bg-[#dc2626]/10 text-[#dc2626]">{tkn.number}</span>
+                        <div>
+                          <p className="text-sm font-medium text-[#1c1917]">{tkn.name}</p>
+                          <p className="text-[12px] text-[#a8a29e]">{tkn.serviceType === "Priority" ? "Priority" : ""}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => handleReAddAbsent(tkn.id)} disabled={actionLoading}
+                        className="text-xs font-semibold text-[#059669] bg-[#059669]/10 px-3 py-1.5 rounded-full hover:bg-[#059669]/20 transition-colors flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Re-add
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* QR CARD */}
             {qrDataUrl && (
