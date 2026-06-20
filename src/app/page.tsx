@@ -128,7 +128,7 @@ export default function Home() {
       </nav>
 
       {/* Hero */}
-      <section className="lg-section" style={{minHeight:"calc(100vh - 64px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"48px 16px"}}>
+      <section className="lg-section" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 16px"}}>
         <div className="glass-card glass-card--glow animate-fade-scale" style={{maxWidth:520,width:"100%",padding:48,textAlign:"center"}}>
           <span style={{display:"inline-block",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--color-accent)",marginBottom:16}}>{c.hero.eyebrow}</span>
           <h1 style={{fontFamily:"var(--font-display-lg)",fontSize:"clamp(32px,6vw,48px)",fontWeight:700,lineHeight:1.1,letterSpacing:"-0.02em",marginBottom:12,color:"var(--text-primary)"}}>
@@ -148,7 +148,7 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="lg-section" id="how" style={{padding:"80px 0"}}>
+      <section className="lg-section" id="how" style={{padding:"40px 0"}}>
         <div className="lg-container">
           <p className="section-label" style={{color:"var(--color-accent)",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",textAlign:"center",marginBottom:4}}>{c.how.label}</p>
           <h2 style={{fontFamily:"var(--font-display-lg)",fontSize:"clamp(24px,3vw,28px)",fontWeight:600,letterSpacing:"-0.02em",color:"var(--text-primary)",textAlign:"center",marginBottom:32}}>{c.how.title}</h2>
