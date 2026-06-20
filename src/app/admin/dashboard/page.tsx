@@ -11,7 +11,8 @@ import {
   setDoc, getDocs, writeBatch, Timestamp, runTransaction,
 } from "firebase/firestore";
 import QRCode from "qrcode";
-import { getOfficeUrl, getTodayDayName, getTodayStr } from "@/lib/utils";
+import { getOfficeUrl, getTodayDayName, getTodayStr, normalizeCode } from "@/lib/utils";
+import { encryptId } from "@/lib/crypto";
 import Link from "next/link";
 import type { DaySchedule } from "@/lib/types";
 
@@ -30,6 +31,7 @@ const LANG: Record<string, Record<string, string>> = {
     public: "Public", privateLabel: "Private",
     today: "Today", hours: "Hours", closed_today: "Closed today",
     settings_btn: "Settings", target: "Target", served_tokens: "Served",
+    switch_office: "Switch queue", new_queue: "New Queue",
   },
   hi: {
     loading: "लोड हो रहा है...", now_serving: "अब सेवा", call_next: "अगला बुलाएं",
@@ -46,6 +48,7 @@ const LANG: Record<string, Record<string, string>> = {
     privateLabel: "निजी",
     today: "आज", hours: "समय", closed_today: "आज बंद है",
     settings_btn: "सेटिंग्स", target: "लक्ष्य", served_tokens: "सेवित",
+    switch_office: "कतार बदलें", new_queue: "नई कतार",
   },
 };
 
@@ -58,6 +61,7 @@ export default function AdminDashboardPage() {
   const t = (k: string) => LANG[lang][k] || k;
   const [office, setOffice] = useState<Office | null>(null);
   const [allOffices, setAllOffices] = useState<Office[]>([]);
+  const [officeDropdown, setOfficeDropdown] = useState(false);
   const [currentToken, setCurrentToken] = useState(0);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [isPaused, setIsPaused] = useState(false);
@@ -75,26 +79,25 @@ export default function AdminDashboardPage() {
   const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    const loadOffices = async () => {
-      const db = getDb()!;
-      const snapshot = await getDocs(collection(db, "offices"));
-      const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Office));
-      setAllOffices(list);
-      if (list.length > 0) { setOffice(list[0]); setIsPublic(list[0].public === true); setLoading(false); return; }
-      setLoading(false);
-    };
-    if (process.env.NEXT_PUBLIC_TEST_MODE === "true") { loadOffices(); return; }
     if (authLoading) return;
     if (!user) { router.push("/admin/login"); return; }
     const load = async () => {
       const db = getDb()!;
-      const q = query(collection(db, "offices"), where("adminUid", "==", user.uid));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) { router.push("/admin/register"); return; }
-      const officeData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Office;
-      setOffice(officeData);
-      setIsPublic(officeData.public === true);
-      QRCode.toDataURL(getOfficeUrl(officeData.code), { width: 200, margin: 2 }).then(setQrDataUrl);
+      let list: Office[];
+      if (process.env.NEXT_PUBLIC_TEST_MODE === "true") {
+        const snapshot = await getDocs(collection(db, "offices"));
+        list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Office));
+      } else {
+        const q = query(collection(db, "offices"), where("adminUid", "==", user.uid));
+        const snapshot = await getDocs(q);
+        list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Office));
+      }
+      setAllOffices(list);
+      if (list.length === 0) { router.push("/admin/onboard"); setLoading(false); return; }
+      const o = list[0];
+      setOffice(o);
+      setIsPublic(o.public === true);
+      QRCode.toDataURL(getOfficeUrl(o.code), { width: 200, margin: 2 }).then(setQrDataUrl);
       setLoading(false);
     };
     load();
@@ -102,7 +105,13 @@ export default function AdminDashboardPage() {
 
   const switchOffice = (id: string) => {
     const o = allOffices.find((o) => o.id === id);
-    if (o) setOffice(o);
+    if (!o) return;
+    setOffice(o);
+    setIsPublic(o.public === true);
+    setCurrentToken(0); setTokens([]); setIsPaused(false); setIsOpen(true);
+    setTotalIssued(0); setTodayQueueId(""); setServingToken(null); setActionError("");
+    QRCode.toDataURL(getOfficeUrl(o.code), { width: 200, margin: 2 }).then(setQrDataUrl);
+    setOfficeDropdown(false);
   };
 
   useEffect(() => {
@@ -259,12 +268,53 @@ export default function AdminDashboardPage() {
       <div className="bg-white px-4 pt-4 pb-3">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-[#1e1b4b] flex items-center justify-center shrink-0">
                 <span className="text-white font-bold text-sm">L</span>
               </div>
-              <div>
-                <h1 className="font-semibold text-sm text-[#1c1917]">{office?.name}</h1>
+              <div className="min-w-0">
+                {allOffices.length > 1 ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setOfficeDropdown(!officeDropdown)}
+                      className="flex items-center gap-1.5 hover:opacity-80"
+                    >
+                      <h1 className="font-semibold text-sm text-[#1c1917] truncate max-w-[160px]">{office?.name}</h1>
+                      <svg className="w-3.5 h-3.5 text-[#a8a29e] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    {officeDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setOfficeDropdown(false)} />
+                        <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-[#e7e5e4] py-1 min-w-[200px] z-20">
+                          <p className="px-3 py-1.5 text-[10px] font-semibold text-[#a8a29e] uppercase tracking-wider">{t("switch_office")}</p>
+                          {allOffices.map((o) => (
+                            <button
+                              key={o.id}
+                              onClick={() => switchOffice(o.id)}
+                              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#f5f2ed] transition-colors ${o.id === office?.id ? "bg-[#f5f2ed] text-[#1e1b4b] font-semibold" : "text-[#78716c]"}`}
+                            >
+                              <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${o.id === office?.id ? "bg-[#1e1b4b] text-white" : "bg-[#e7e5e4] text-[#a8a29e]"}`}>
+                                {o.name.charAt(0)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate">{o.name}</p>
+                                <p className="text-[10px] text-[#a8a29e] font-mono">{o.code}</p>
+                              </div>
+                            </button>
+                          ))}
+                          <div className="border-t border-[#e7e5e4] mt-1 pt-1">
+                            <Link href="/admin/onboard" className="flex items-center gap-2 px-3 py-2 text-sm text-[#d97706] hover:bg-[#f5f2ed] transition-colors">
+                              <span className="w-5 h-5 rounded-md bg-[#d97706]/10 flex items-center justify-center text-xs">+</span>
+                              {t("new_queue")}
+                            </Link>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <h1 className="font-semibold text-sm text-[#1c1917]">{office?.name}</h1>
+                )}
                 <p className="text-[11px] text-[#a8a29e] font-mono">#{office?.code}</p>
               </div>
             </div>
@@ -274,7 +324,6 @@ export default function AdminDashboardPage() {
                   if (!office) return;
                   const next = !isPublic;
                   try {
-                    const { doc, updateDoc } = await import("firebase/firestore");
                     await updateDoc(doc(getDb()!, "offices", office.id), { public: next });
                     setIsPublic(next);
                   } catch {}
@@ -326,7 +375,7 @@ export default function AdminDashboardPage() {
               <svg className="w-7 h-7 text-[#a8a29e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
             </div>
             <p className="text-[#78716c] text-sm mb-4">{t("no_office")}</p>
-            <Link href="/admin/register" className="btn-primary">{t("register")}</Link>
+            <Link href="/admin/onboard" className="btn-primary">{t("register")}</Link>
           </div>
         ) : (
           <>

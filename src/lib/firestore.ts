@@ -16,9 +16,10 @@ import {
   addDoc,
   Timestamp,
   runTransaction,
+  writeBatch,
 } from "firebase/firestore";
 import type { Office, QueueDay, Token, TokenStatus } from "./types";
-import { getTodayStr } from "./utils";
+import { getTodayStr, normalizeCode } from "./utils";
 
 const DEFAULT_SCHEDULE = {
   Monday: { open: "09:00", close: "17:00" },
@@ -30,7 +31,7 @@ const DEFAULT_SCHEDULE = {
   Sunday: null,
 };
 
-// Generate unique 6-char office code
+// Generate unique 6-char office code (no dashes)
 export const generateOfficeCode = (name: string): string => {
   const prefix = name
     .split(" ")
@@ -39,7 +40,7 @@ export const generateOfficeCode = (name: string): string => {
     .toUpperCase()
     .slice(0, 3);
   const suffix = Math.random().toString(36).substring(2, 5).toUpperCase();
-  return `${prefix}-${suffix}`;
+  return `${prefix}${suffix}`;
 };
 
 // Create office document
@@ -63,10 +64,10 @@ export const createOffice = async (
   return { id: officeRef.id, code };
 };
 
-// Get office by code
+// Get office by code (normalized — strips dashes)
 export const getOfficeByCode = async (code: string): Promise<Office | null> => {
   const db = getDb();
-  const q = query(collection(db, "offices"), where("code", "==", code));
+  const q = query(collection(db, "offices"), where("code", "==", normalizeCode(code)));
   const snapshot = await getDocs(q);
   if (snapshot.empty) return null;
   const doc = snapshot.docs[0];
@@ -260,4 +261,29 @@ export const getTokensForDate = async (officeId: string, dateStr: string) => {
   const q = query(tokensRef, orderBy("number"));
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Token));
+};
+
+// Get all offices by admin UID
+export const getOfficesByAdminUid = async (uid: string): Promise<Office[]> => {
+  const db = getDb();
+  const q = query(collection(db, "offices"), where("adminUid", "==", uid));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Office));
+};
+
+// Migrate: remove dashes from all existing office codes
+export const migrateOfficeCodes = async (): Promise<number> => {
+  const db = getDb();
+  const snapshot = await getDocs(collection(db, "offices"));
+  let count = 0;
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((d) => {
+    const data = d.data();
+    if (data.code && data.code.includes("-")) {
+      batch.update(d.ref, { code: normalizeCode(data.code) });
+      count++;
+    }
+  });
+  if (count > 0) await batch.commit();
+  return count;
 };

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope } from "next/font/google";
+import { Manrope, Plus_Jakarta_Sans, DM_Sans } from "next/font/google";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import BackButton from "@/components/BackButton";
@@ -9,6 +9,20 @@ const manrope = Manrope({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-manrope",
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-plus-jakarta",
+  weight: ["400", "600", "700"],
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-dm-sans",
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -31,7 +45,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#1a56db",
+  themeColor: "#0D0A2E",
 };
 
 export default function RootLayout({
@@ -40,12 +54,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" dir="ltr" className={manrope.variable}>
+    <html lang="en" dir="ltr" className={`${manrope.variable} ${plusJakarta.variable} ${dmSans.variable}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/phosphor.css" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -66,7 +81,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-gray-50">
+      <body className="min-h-screen bg-[#f5f2ed]">
         <BackButton />
         <AuthProvider>
           <LanguageProvider>{children}</LanguageProvider>

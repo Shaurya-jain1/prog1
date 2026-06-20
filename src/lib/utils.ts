@@ -54,7 +54,11 @@ export const generateOfficeCode = (name: string): string => {
     .toUpperCase()
     .slice(0, 3);
   const suffix = Math.random().toString(36).substring(2, 5).toUpperCase();
-  return `${prefix}-${suffix}`;
+  return `${prefix}${suffix}`;
+};
+
+export const normalizeCode = (code: string): string => {
+  return code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 };
 
 export const getBaseUrl = () => {

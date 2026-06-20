@@ -6,50 +6,20 @@ import { getDb } from "@/lib/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import Link from "next/link";
 import type { DaySchedule } from "@/lib/types";
-import { getTodayDayName } from "@/lib/utils";
+import { getTodayDayName, normalizeCode } from "@/lib/utils";
+import { encryptId } from "@/lib/crypto";
 
 const LANG: Record<string, Record<string, string>> = {
-  en: {
-    title: "Find an Organization",
-    search: "Search by name, district, or city...",
-    noResults: "No organizations found",
-    loading: "Finding organizations...",
-    join: "Join Queue",
-    open: "Open",
-    closed: "Closed",
-    registerTitle: "Own a clinic or shop?",
-    registerDesc: "List your organization on LineHai? and let people join your queue directly.",
-    register: "Register Now",
-  },
-  hi: {
-    title: "संगठन खोजें",
-    search: "नाम, ज़िला या शहर से खोजें...",
-    noResults: "कोई संगठन नहीं मिला",
-    loading: "संगठन खोज रहा है...",
-    join: "कतार में शामिल हों",
-    open: "खुला",
-    closed: "बंद",
-    registerTitle: "आपकी क्लिनिक या दुकान है?",
-    registerDesc: "अपने संगठन को LineHai? पर सूचीबद्ध करें और लोगों को सीधे कतार में शामिल होने दें।",
-    register: "अभी पंजीकरण करें",
-  },
+  en: { title: "Find an Organization", search: "Search by name, district, or city...", noResults: "No organizations found", loading: "Finding organizations...", join: "Join Queue", open: "Open", closed: "Closed", registerTitle: "Own a clinic or shop?", registerDesc: "List your organization on LineHai? and let people join your queue directly.", register: "Register Now" },
+  hi: { title: "संगठन खोजें", search: "नाम, ज़िला या शहर से खोजें...", noResults: "कोई संगठन नहीं मिला", loading: "संगठन खोज रहा है...", join: "कतार में शामिल हों", open: "खुला", closed: "बंद", registerTitle: "आपकी क्लिनिक या दुकान है?", registerDesc: "अपने संगठन को LineHai? पर सूचीबद्ध करें और लोगों को सीधे कतार में शामिल होने दें।", register: "अभी पंजीकरण करें" },
 };
 
-interface Org {
-  id: string;
-  name: string;
-  district: string;
-  state: string;
-  code: string;
-  schedule?: Record<string, DaySchedule | null>;
-  openDays: string[];
-  openTime: string;
-  closeTime: string;
-}
+interface Org { id: string; name: string; district: string; state: string; code: string; schedule?: Record<string, DaySchedule | null>; openDays: string[]; openTime: string; closeTime: string; }
 
 export default function FindPage() {
   const router = useRouter();
   const [lang, setLang] = useState<"en" | "hi">("en");
+  const [langOpen, setLangOpen] = useState(false);
   const c = LANG[lang];
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [query_, setQuery_] = useState("");
@@ -69,23 +39,13 @@ export default function FindPage() {
   }, []);
 
   const todayName = getTodayDayName();
-  const timeParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date()).map((part) => [part.type, part.value]));
+  const timeParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((part) => [part.type, part.value]));
   const currentMinutes = Number(timeParts.hour) * 60 + Number(timeParts.minute);
 
   const getTodayHours = (org: Org): DaySchedule | null => {
-    if (org.schedule && Object.prototype.hasOwnProperty.call(org.schedule, todayName)) {
-      return org.schedule[todayName];
-    }
+    if (org.schedule && Object.prototype.hasOwnProperty.call(org.schedule, todayName)) return org.schedule[todayName];
     if (!org.openDays?.includes(todayName)) return null;
-    return {
-      open: org.openTime || "09:00",
-      close: org.closeTime || "17:00",
-    };
+    return { open: org.openTime || "09:00", close: org.closeTime || "17:00" };
   };
 
   const isOpenNow = (org: Org) => {
@@ -101,103 +61,115 @@ export default function FindPage() {
   const filtered = orgs.filter((org) => {
     if (!query_.trim()) return true;
     const q = query_.toLowerCase();
-    return (
-      org.name?.toLowerCase().includes(q) ||
-      org.district?.toLowerCase().includes(q) ||
-      org.state?.toLowerCase().includes(q)
-    );
+    return org.name?.toLowerCase().includes(q) || org.district?.toLowerCase().includes(q) || org.state?.toLowerCase().includes(q);
   });
 
+  const OrgIcon = ({ name }: { name: string }) => {
+    const n = name.toLowerCase();
+    if (n.includes("hospital") || n.includes("clinic") || n.includes("health")) return "🏥";
+    if (n.includes("bank") || n.includes("sbi")) return "🏦";
+    if (n.includes("e-district") || n.includes("passport") || n.includes("aadhaar") || n.includes("government")) return "🏛️";
+    if (n.includes("restaurant") || n.includes("haldiram") || n.includes("dhaba")) return "🍽️";
+    if (n.includes("salon") || n.includes("naturals") || n.includes("barber")) return "✂️";
+    if (n.includes("ration") || n.includes("bigbasket") || n.includes("kirana") || n.includes("retail")) return "🛒";
+    return "🏪";
+  };
+
   return (
-    <div className="min-h-screen" style={{ background: "#f5f2ed" }}>
-      {/* NAV */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#e7e5e4]">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <span className="flex items-center gap-2.5">
-            <button onClick={() => router.push("/")} className="btn-ghost !min-h-[36px] !px-2 !rounded-xl">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-            </button>
-            <img src="/logo.png" alt="LineHai?" className="w-7 h-7 rounded-lg" />
-            <span className="text-lg font-black tracking-tight text-[#1e1b4b]">LineHai?</span>
-          </span>
-          <button onClick={() => setLang(lang === "en" ? "hi" : "en")} className="btn-ghost">{lang === "en" ? "हि" : "EN"}</button>
+    <>
+      <div className="mesh-bg" aria-hidden="true">
+        <div className="mesh-blob mesh-blob--amber" />
+        <div className="mesh-blob mesh-blob--violet" />
+        <div className="mesh-blob mesh-blob--teal" />
+      </div>
+
+      <nav className="glass-nav">
+        <div className="glass-nav__inner">
+          <Link href="/" className="glass-nav__logo"><span className="glass-nav__logo-line">Line</span><span className="glass-nav__logo-hai">Hai?</span></Link>
+          <div className="glass-nav__links">
+            <Link href="/find" className="glass-nav__link" style={{color:"var(--text-primary)",fontWeight:600}}>{c.title}</Link>
+            <Link href="/admin/register" className="glass-nav__link">For business</Link>
+            <Link href="/#how" className="glass-nav__link">How it works</Link>
+          </div>
+          <div className="glass-nav__right">
+            <div className="glass-lang" onClick={() => setLangOpen(!langOpen)}>
+              <i className="ph ph-globe" style={{fontSize:14}} />
+              <span>{lang === "en" ? "EN" : "हि"}</span>
+              <span style={{fontSize:8,color:"var(--text-tertiary)",lineHeight:1}}>▾</span>
+              <div className={`glass-lang__dropdown ${langOpen ? "open" : ""}`} onClick={(e) => e.stopPropagation()}>
+                <button className={`glass-lang__item ${lang==="en"?"glass-lang__item--active":""}`} onClick={() => { setLang("en"); setLangOpen(false); }}>English</button>
+                <button className={`glass-lang__item ${lang==="hi"?"glass-lang__item--active":""}`} onClick={() => { setLang("hi"); setLangOpen(false); }}>हिन्दी</button>
+              </div>
+            </div>
+            <Link href="/admin/login" className="glass-btn-ghost" style={{height:40,padding:"0 20px",fontSize:13,textDecoration:"none"}}>Sign in</Link>
+          </div>
         </div>
       </nav>
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-2xl font-black text-[#1c1917] mb-2">{c.title}</h1>
-
-        {/* SEARCH */}
-        <div className="relative mb-6">
-          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a8a29e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <input
-            className="input !pl-11"
-            value={query_}
-            onChange={(e) => setQuery_(e.target.value)}
-            placeholder={c.search}
-            autoFocus
-          />
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex items-center gap-3 text-[#78716c]">
-              <div className="w-5 h-5 border-2 border-[#d6d3d1] border-t-[#1e1b4b] rounded-full animate-spin" />
-              <span className="text-sm">{c.loading}</span>
+      <section className="lg-section" style={{padding:"40px 16px"}}>
+        <div className="lg-container">
+          <div style={{maxWidth:560,margin:"0 auto 32px",textAlign:"center"}}>
+            <h1 style={{fontFamily:"var(--font-display-lg)",fontSize:28,fontWeight:600,letterSpacing:"-0.02em",color:"var(--text-primary)",marginBottom:4}}>{c.title}</h1>
+            <p style={{fontSize:14,color:"var(--text-secondary)",marginBottom:20}}>Search for clinics, shops, and offices using LineHai?</p>
+            <div className="glass-input__wrapper">
+              <input type="text" className="glass-input" value={query_} onChange={(e) => setQuery_(e.target.value)} placeholder={c.search} autoFocus />
             </div>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-14 h-14 bg-[#e7e5e4] rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-7 h-7 text-[#a8a29e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </div>
-            <p className="text-sm text-[#78716c]">{c.noResults}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs text-[#a8a29e] font-medium">{filtered.length} {lang === "en" ? "organizations found" : "संगठन मिले"}</p>
-            {filtered.map((org) => {
-              const open = isOpenNow(org);
-              const hours = getTodayHours(org);
-              return (
-                <div key={org.id} className="card flex items-center gap-4">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-[#1c1917]">{org.name}</h3>
-                    <p className="text-xs text-[#78716c] mt-0.5">
-                      {org.district}, {org.state}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-                        open ? "bg-[#059669]/10 text-[#059669]" : "bg-[#dc2626]/10 text-[#dc2626]"
-                      }`}>
-                        {open ? c.open : c.closed}
-                      </span>
-                      <span className="text-[10px] text-[#a8a29e]">{hours ? `${hours.open} - ${hours.close}` : c.closed}</span>
-                    </div>
-                  </div>
-                  <Link
-                    href={`/q/${org.code}`}
-                    className="btn-primary !min-h-[40px] !px-4 !text-sm shrink-0"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                    {c.join}
-                  </Link>
+
+          {loading ? (
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16,maxWidth:960,margin:"0 auto"}}>
+              {[1,2,3].map((i) => (
+                <div key={i} className="glass-skeleton" style={{padding:24}}>
+                  <div className="glass-skeleton__line glass-skeleton__line--med" />
+                  <div className="glass-skeleton__line glass-skeleton__line--long" />
+                  <div className="glass-skeleton__line glass-skeleton__line--short" />
+                  <div className="glass-skeleton__line glass-skeleton__line--long" style={{marginTop:12}} />
                 </div>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{textAlign:"center",padding:"48px 0"}}>
+              <div style={{fontSize:48,color:"var(--text-tertiary)",marginBottom:16}}><i className="ph ph-magnifying-glass" /></div>
+              <p style={{fontSize:15,color:"var(--text-secondary)"}}>{c.noResults}</p>
+            </div>
+          ) : (
+            <>
+              <p style={{fontSize:12,color:"var(--text-tertiary)",maxWidth:960,margin:"0 auto 12px",fontWeight:500}}>{filtered.length} {lang==="en"?"organizations found":"संगठन मिले"}</p>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16,maxWidth:960,margin:"0 auto"}}>
+                {filtered.map((org) => {
+                  const open = isOpenNow(org);
+                  const hours = getTodayHours(org);
+                  return (
+                    <div key={org.id} className="glass-card animate-fade-scale" style={{padding:20,display:"flex",flexDirection:"column",gap:8}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                        <span style={{fontSize:28}}><OrgIcon name={org.name} /></span>
+                        <span className={`glass-badge ${open?"":"glass-badge--green"}`} style={open?{}:{background:"rgba(48,209,88,0.20)",borderColor:"rgba(48,209,88,0.40)",color:"#30D158"}}>
+                          {open ? "🟢" : "🔴"} {open ? c.open : c.closed}
+                        </span>
+                      </div>
+                      <h3 style={{fontFamily:"var(--font-display-lg)",fontSize:16,fontWeight:600,color:"var(--text-primary)"}}>{org.name}</h3>
+                      <p style={{fontSize:13,color:"var(--text-tertiary)",display:"flex",alignItems:"center",gap:4}}>
+                        <i className="ph ph-map-pin" style={{fontSize:14}} /> {org.district}, {org.state}
+                      </p>
+                      {hours && <p style={{fontSize:11,color:"var(--text-tertiary)"}}>{hours.open} - {hours.close}</p>}
+                      <Link href={`/q/${encryptId(normalizeCode(org.code))}`} className="glass-btn-ghost glass-btn-ghost--full" style={{height:44,fontSize:14,marginTop:"auto",textDecoration:"none"}}>
+                        {c.join} <i className="ph ph-arrow-right" style={{fontSize:16}} />
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
-        {/* REGISTER CTA */}
-        <div className="mt-10 card-amber text-center">
-          <div className="w-12 h-12 bg-[#d97706]/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-[#d97706]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+          <div className="glass-card" style={{maxWidth:480,margin:"40px auto 0",padding:24,textAlign:"center",background:"var(--glass-bg-strong)"}}>
+            <div style={{fontSize:32,marginBottom:8,color:"var(--color-accent)"}}><i className="ph ph-storefront" /></div>
+            <h3 style={{fontFamily:"var(--font-display-lg)",fontSize:16,fontWeight:600,color:"var(--text-primary)",marginBottom:4}}>{c.registerTitle}</h3>
+            <p style={{fontSize:13,color:"var(--text-secondary)",marginBottom:16,maxWidth:360,margin:"0 auto 16px"}}>{c.registerDesc}</p>
+            <Link href="/admin/register" className="glass-btn-primary" style={{textDecoration:"none",fontSize:14,height:46,padding:"0 28px",display:"inline-flex"}}>{c.register}</Link>
           </div>
-          <h3 className="text-base font-bold text-[#1c1917] mb-1">{c.registerTitle}</h3>
-          <p className="text-sm text-[#78716c] mb-4 max-w-sm mx-auto">{c.registerDesc}</p>
-          <Link href="/admin/register" className="btn-accent">{c.register}</Link>
         </div>
-      </main>
-    </div>
+      </section>
+    </>
   );
 }

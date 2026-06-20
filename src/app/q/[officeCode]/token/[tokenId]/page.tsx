@@ -6,7 +6,8 @@ import { useParams } from "next/navigation";
 import { getDb } from "@/lib/firebase";
 import { doc, collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import Link from "next/link";
-import { getTodayStr } from "@/lib/utils";
+import { getTodayStr, normalizeCode } from "@/lib/utils";
+import { decryptId } from "@/lib/crypto";
 
 const L: Record<string, Record<string, string>> = {
   en: { turn: "It's your turn!", coming: "Your turn is coming!", cancelled: "Cancelled", served: "Completed", token: "Your Token", pos: "Position", wait: "Est. Wait", min: "min", now: "Now Serving", progress: "Progress", leave: "Stay where you are. This page updates live.", notFound: "Token not found", newToken: "Get New Token", loading: "Loading...", status: "Status" },
@@ -19,8 +20,10 @@ interface QueueData { currentToken: number; totalIssued: number; }
 
 export default function TokenStatusPage() {
   const params = useParams();
-  const officeCode = params.officeCode as string;
+  const rawCode = params.officeCode as string;
   const tokenId = params.tokenId as string;
+  const decodedCode = decryptId(rawCode);
+  const normalizedCode = normalizeCode(decodedCode);
   const [lang, setLang] = useState<"en" | "hi">("en");
   const t = (k: string) => L[lang][k] || k;
   const [office, setOffice] = useState<Office | null>(null);
@@ -29,11 +32,11 @@ export default function TokenStatusPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!officeCode || !tokenId) return;
+    if (!normalizedCode || !tokenId) return;
     const unsubs: (() => void)[] = [];
     (async () => {
       const db = getDb()!;
-      const snap = await getDocs(query(collection(db, "offices"), where("code", "==", officeCode)));
+      const snap = await getDocs(query(collection(db, "offices"), where("code", "==", normalizedCode)));
       if (snap.empty) { setLoading(false); return; }
       const o = { id: snap.docs[0].id, ...snap.docs[0].data() } as Office;
       setOffice(o);
@@ -44,7 +47,7 @@ export default function TokenStatusPage() {
       setLoading(false);
     })();
     return () => unsubs.forEach(u => u());
-  }, [officeCode, tokenId]);
+  }, [normalizedCode, tokenId]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#f2f2f7" }}><div className="w-8 h-8 border-2 border-[#c6c6c8] border-t-[#007AFF] rounded-full animate-spin" /></div>;
   if (!token || !office) return (
@@ -52,7 +55,7 @@ export default function TokenStatusPage() {
       <div className="card text-center py-12 max-w-sm w-full shadow-xl shadow-black/5">
         <div className="w-14 h-14 bg-[#FF3B30]/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><svg className="w-7 h-7 text-[#FF3B30]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
         <p className="text-[#1c1c1e] font-semibold mb-1">{t("notFound")}</p>
-        <Link href={`/q/${officeCode}`} className="btn-primary inline-flex !w-auto !px-6 text-sm mt-4">{t("newToken")}</Link>
+        <Link href={`/q/${rawCode}`} className="btn-primary inline-flex !w-auto !px-6 text-sm mt-4">{t("newToken")}</Link>
       </div>
     </div>
   );
@@ -109,7 +112,7 @@ export default function TokenStatusPage() {
               }
             </div>
             <p className="font-bold text-base text-[#1c1c1e]">{token.status === "cancelled" ? t("cancelled") : t("served")}</p>
-            <Link href={`/q/${officeCode}`} className="btn-primary inline-flex !w-auto !px-6 text-sm mt-4">{t("newToken")}</Link>
+            <Link href={`/q/${rawCode}`} className="btn-primary inline-flex !w-auto !px-6 text-sm mt-4">{t("newToken")}</Link>
           </div>
         )}
 

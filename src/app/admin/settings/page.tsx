@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { getDb } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import { migrateOfficeCodes } from "@/lib/firestore";
 import QRCode from "qrcode";
 import { getOfficeUrl } from "@/lib/utils";
+import Link from "next/link";
 import type { DaySchedule } from "@/lib/types";
 
 const L: Record<string, Record<string, string>> = {
@@ -19,6 +21,8 @@ const L: Record<string, Record<string, string>> = {
     loading: "Loading...", mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
     public: "Show in public directory",
     publicDesc: "Let people find your organization and join the queue without a code",
+    switch_office: "Switch queue", add_queue: "Add New Queue",
+    migrate: "Fix old codes", migrate_done: "Fixed {n} codes",
   },
   hi: {
     back: "वापस", title: "सेटिंग्स", name: "संगठन का नाम", limit: "दैनिक सीमा",
@@ -28,6 +32,8 @@ const L: Record<string, Record<string, string>> = {
     loading: "लोड हो रहा है...", mon: "सोम", tue: "मंगल", wed: "बुध", thu: "गुरु", fri: "शुक्र", sat: "शनि", sun: "रवि",
     public: "डायरेक्टरी में दिखाएं",
     publicDesc: "लोग आपको खोजकर बिना कोड के कतार में शामिल हो सकें",
+    switch_office: "कतार बदलें", add_queue: "नई कतार जोड़ें",
+    migrate: "पुराने कोड ठीक करें", migrate_done: "{n} कोड ठीक हुए",
   },
 };
 
@@ -52,33 +58,44 @@ export default function AdminSettingsPage() {
   const router = useRouter();
   const [lang, setLang] = useState<"en" | "hi">("en");
   const t = (k: string) => L[lang][k] || k;
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [officeIdx, setOfficeIdx] = useState(0);
   const [office, setOffice] = useState<Office | null>(null);
   const [name, setName] = useState(""); const [limit, setLimit] = useState(100);
   const [services, setServices] = useState<string[]>(["General"]);
   const [schedule, setSchedule] = useState<Record<string, DaySchedule | null>>(DEFAULT_SCHEDULE());
   const [isPublic, setIsPublic] = useState(false);
   const [qr, setQr] = useState(""); const [saving, setSaving] = useState(false); const [saved, setSaved] = useState(false);
+  const [migrating, setMigrating] = useState(false); const [migrateMsg, setMigrateMsg] = useState("");
 
   const { user, loading: authLoading } = useAuth();
+
+  const loadOffice = async (idx: number, list?: Office[]) => {
+    const db = getDb()!;
+    if (!list) {
+      const snap = await getDocs(query(collection(db, "offices"), where("adminUid", "==", user!.uid)));
+      list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Office));
+      setOffices(list);
+    }
+    if (list.length === 0) { router.push("/admin/onboard"); return; }
+    const idx2 = Math.min(idx, list.length - 1);
+    const d = list[idx2];
+    const sched = d.schedule || DEFAULT_SCHEDULE();
+    setOfficeIdx(idx2);
+    setOffice({ id: d.id, name: d.name, code: d.code, serviceTypes: d.serviceTypes || ["General"], dailyLimit: d.dailyLimit || 100, schedule: sched, public: d.public === true });
+    setName(d.name); setLimit(d.dailyLimit || 100);
+    setServices(d.serviceTypes || ["General"]); setSchedule(sched);
+    setIsPublic(d.public === true);
+    QRCode.toDataURL(getOfficeUrl(d.code), { width: 200, margin: 2 }).then(setQr);
+  };
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push("/admin/login"); return; }
-    const load = async () => {
-      const db = getDb()!;
-      const snap = await getDocs(query(collection(db, "offices"), where("adminUid", "==", user.uid)));
-      if (snap.empty) { router.push("/admin/register"); return; }
-      const d = snap.docs[0];
-      const data = d.data();
-      const sched = data.schedule || DEFAULT_SCHEDULE();
-      setOffice({ id: d.id, name: data.name, code: data.code, serviceTypes: data.serviceTypes || ["General"], dailyLimit: data.dailyLimit || 100, schedule: sched, public: data.public === true });
-      setName(data.name); setLimit(data.dailyLimit || 100);
-      setServices(data.serviceTypes || ["General"]); setSchedule(sched);
-      setIsPublic(data.public === true);
-      QRCode.toDataURL(getOfficeUrl(data.code), { width: 200, margin: 2 }).then(setQr);
-    };
-    load();
+    loadOffice(0);
   }, [router, authLoading, user]);
+
+  const switchOffice = (n: number) => loadOffice(n);
 
   const save = async () => {
     if (!office) return; setSaving(true); setSaved(false);
@@ -88,14 +105,8 @@ export default function AdminSettingsPage() {
     const closeTime = firstOpenDay ? schedule[firstOpenDay]?.close : "17:00";
     try {
       await updateDoc(doc(getDb()!, "offices", office.id), {
-        name,
-        dailyLimit: limit,
-        serviceTypes: services,
-        schedule,
-        public: isPublic,
-        openDays,
-        openTime,
-        closeTime,
+        name, dailyLimit: limit, serviceTypes: services, schedule, public: isPublic,
+        openDays, openTime, closeTime,
       });
       setSaved(true); setTimeout(() => setSaved(false), 3000);
     } catch {}
@@ -120,6 +131,16 @@ export default function AdminSettingsPage() {
 
   const addService = () => { const s = prompt("Service name:"); if (s && !services.includes(s)) setServices([...services, s]); };
 
+  const handleMigrate = async () => {
+    setMigrating(true); setMigrateMsg("");
+    try {
+      const n = await migrateOfficeCodes();
+      setMigrateMsg(t("migrate_done").replace("{n}", String(n)));
+      setTimeout(() => setMigrateMsg(""), 3000);
+    } catch { setMigrateMsg("Error"); }
+    setMigrating(false);
+  };
+
   if (!office) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "#f5f2ed" }}>
       <div className="w-8 h-8 border-2 border-[#d6d3d1] border-t-[#1e1b4b] rounded-full animate-spin" />
@@ -131,13 +152,39 @@ export default function AdminSettingsPage() {
       {/* HEADER */}
       <div className="bg-white px-4 pt-4 pb-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.push("/admin/dashboard")} className="w-8 h-8 rounded-lg bg-[#f5f2ed] flex items-center justify-center text-[#78716c]">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => router.push("/admin/dashboard")} className="w-8 h-8 rounded-lg bg-[#f5f2ed] flex items-center justify-center text-[#78716c] shrink-0">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <h1 className="font-semibold text-base text-[#1c1917]">{t("title")}</h1>
+            <div>
+              {offices.length > 1 ? (
+                <div className="flex items-center gap-1.5">
+                  <h1 className="font-semibold text-base text-[#1c1917]">{office.name}</h1>
+                </div>
+              ) : (
+                <h1 className="font-semibold text-base text-[#1c1917]">{t("title")}</h1>
+              )}
+            </div>
           </div>
-          <button onClick={() => setLang(lang === "en" ? "hi" : "en")} className="w-8 h-8 rounded-lg bg-[#f5f2ed] flex items-center justify-center text-[11px] font-bold text-[#78716c]">{lang === "en" ? "हि" : "EN"}</button>
+          <div className="flex items-center gap-1">
+            {offices.length > 1 && (
+              <div className="flex items-center gap-0.5 mr-1">
+                {offices.map((o, i) => (
+                  <button
+                    key={o.id}
+                    onClick={() => switchOffice(i)}
+                    className={`w-6 h-6 rounded-md text-[9px] font-bold transition-colors ${i === officeIdx ? "bg-[#1e1b4b] text-white" : "bg-[#f5f2ed] text-[#a8a29e] hover:text-[#78716c]"}`}
+                  >
+                    {o.name.charAt(0)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Link href="/admin/onboard" className="w-8 h-8 rounded-lg bg-[#f5f2ed] flex items-center justify-center text-[#a8a29e] hover:text-[#78716c]">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+            </Link>
+            <button onClick={() => setLang(lang === "en" ? "hi" : "en")} className="w-8 h-8 rounded-lg bg-[#f5f2ed] flex items-center justify-center text-[11px] font-bold text-[#78716c]">{lang === "en" ? "हि" : "EN"}</button>
+          </div>
         </div>
       </div>
 
@@ -247,6 +294,15 @@ export default function AdminSettingsPage() {
               {t("dl")}
             </button>
           </div>
+        )}
+
+        {/* MIGRATE OLD CODES */}
+        <button onClick={handleMigrate} disabled={migrating} className="btn-outline w-full !border-[#d97706]/30 !text-[#d97706] hover:!bg-[#d97706]/5 text-sm flex items-center justify-center gap-2">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+          {migrating ? "..." : t("migrate")}
+        </button>
+        {migrateMsg && (
+          <div className="bg-[#059669]/10 border border-[#059669]/20 text-[#059669] px-4 py-3 rounded-xl text-sm text-center">{migrateMsg}</div>
         )}
 
         {/* SAVED ALERT */}

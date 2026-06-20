@@ -5,7 +5,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { getDb } from "@/lib/firebase";
 import { doc, collection, query, where, getDocs, updateDoc, onSnapshot, Timestamp, runTransaction } from "firebase/firestore";
-import { getTodayStr } from "@/lib/utils";
+import { getTodayStr, normalizeCode } from "@/lib/utils";
+import { decryptId } from "@/lib/crypto";
 
 const L: Record<string, Record<string, string>> = {
   en: { title: "Join Queue", now: "Now Serving", today: "Today", name: "Your Name", phone: "Phone", get: "Get Token", send: "Issuing...", your: "Your Token", pos: "Position", wait: "Est. Wait", min: "min", leave: "Track your turn live. We'll notify you when it's near.", cancel: "Cancel", view: "View Status", err_name: "Enter your name", err_phone: "Enter 10-digit phone", err_closed: "Queue is closed", err_paused: "Queue is paused", err_limit: "Limit reached today", err_generic: "Error", notFound: "Organization not found", notFoundDesc: "This code is not valid", loading: "Loading..." },
@@ -18,7 +19,9 @@ interface Token { id: string; number: number; name: string; status: string; issu
 
 export default function QueueJoinPage() {
   const params = useParams();
-  const code = params.officeCode as string;
+  const rawCode = params.officeCode as string;
+  const decodedCode = decryptId(rawCode);
+  const normalizedCode = normalizeCode(decodedCode);
   const [lang, setLang] = useState<"en" | "hi">("en");
   const t = (k: string) => L[lang][k] || k;
   const [office, setOffice] = useState<Office | null | undefined>(undefined);
@@ -29,12 +32,12 @@ export default function QueueJoinPage() {
   const initDone = useRef(false);
 
   useEffect(() => {
-    if (!code || initDone.current) return;
+    if (!normalizedCode || initDone.current) return;
     initDone.current = true;
     let uq: (() => void) | null = null;
     (async () => {
       const db = getDb(); if (!db) { setOffice(null); return; }
-      const snap = await getDocs(query(collection(db, "offices"), where("code", "==", code)));
+      const snap = await getDocs(query(collection(db, "offices"), where("code", "==", normalizedCode)));
       if (snap.empty) { setOffice(null); return; }
       const o = { id: snap.docs[0].id, ...snap.docs[0].data() } as Office;
       setOffice(o);
@@ -43,7 +46,7 @@ export default function QueueJoinPage() {
       uq = onSnapshot(doc(db, "queues", qid), s => setQueue(s.exists() ? s.data() as QueueData : { isOpen: true, isPaused: false, currentToken: 0, totalIssued: 0 }));
     })();
     return () => { uq?.(); };
-  }, [code]);
+  }, [normalizedCode]);
 
   const submit = useCallback(async () => {
     setError("");
@@ -135,7 +138,7 @@ export default function QueueJoinPage() {
           <button onClick={cancel} className="btn-ghost !text-[#FF3B30] hover:!bg-[#FF3B30]/5"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>{t("cancel")}</button>
         </div>
         <div className="px-4 pb-6 text-center">
-          <a href={`/q/${code}/token/${token.id}`} className="btn-primary inline-flex !w-auto !px-8 text-sm">{t("view")}</a>
+          <a href={`/q/${rawCode}/token/${token.id}`} className="btn-primary inline-flex !w-auto !px-8 text-sm">{t("view")}</a>
         </div>
       </div>
     );
