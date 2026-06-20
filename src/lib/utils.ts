@@ -1,3 +1,5 @@
+import { encryptId } from "./crypto";
+
 export const formatTime = (timestamp: any): string => {
   if (!timestamp) return "-";
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -67,7 +69,7 @@ export const getBaseUrl = () => {
 };
 
 export const getOfficeUrl = (officeCode: string) => {
-  return `${getBaseUrl()}/q/${officeCode}`;
+  return `${getBaseUrl()}/q/${encryptId(officeCode)}`;
 };
 
 export const generateShareMessage = (
