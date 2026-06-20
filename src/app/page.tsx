@@ -129,7 +129,7 @@ export default function Home() {
 
       {/* Hero */}
       <section className="lg-section" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 16px"}}>
-        <div className="glass-card glass-card--glow animate-fade-scale" style={{maxWidth:520,width:"100%",padding:48,textAlign:"center"}}>
+        <div className="glass-card glass-card--glow animate-fade-scale" style={{maxWidth:520,width:"100%",padding:"clamp(24px, 4vw, 48px)",textAlign:"center"}}>
           <span style={{display:"inline-block",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--color-accent)",marginBottom:16}}>{c.hero.eyebrow}</span>
           <h1 style={{fontFamily:"var(--font-display-lg)",fontSize:"clamp(32px,6vw,48px)",fontWeight:700,lineHeight:1.1,letterSpacing:"-0.02em",marginBottom:12,color:"var(--text-primary)"}}>
             {c.hero.h1a}<br /><span style={{color:"var(--color-accent)"}}>{c.hero.h1b}</span>
@@ -166,7 +166,7 @@ export default function Home() {
       </section>
 
       {/* Use cases */}
-      <section className="lg-section" style={{padding:"80px 0"}}>
+      <section className="lg-section" style={{padding:"clamp(32px, 6vw, 80px) 0"}}>
         <div className="lg-container">
           <p className="section-label" style={{color:"var(--color-accent)",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",textAlign:"center",marginBottom:4}}>{c.uses.label}</p>
           <h2 style={{fontFamily:"var(--font-display-lg)",fontSize:"clamp(24px,3vw,28px)",fontWeight:600,letterSpacing:"-0.02em",color:"var(--text-primary)",textAlign:"center",marginBottom:32}}>{c.uses.title}</h2>
@@ -183,9 +183,9 @@ export default function Home() {
       </section>
 
       {/* Business CTA */}
-      <section className="lg-section" style={{padding:"80px 0"}}>
+      <section className="lg-section" style={{padding:"clamp(32px, 6vw, 80px) 0"}}>
         <div className="lg-container">
-          <div className="glass-card" style={{maxWidth:960,margin:"0 auto",padding:32,background:"var(--glass-bg-strong)"}}>
+          <div className="glass-card" style={{maxWidth:960,margin:"0 auto",padding:"clamp(20px, 3vw, 32px)",background:"var(--glass-bg-strong)"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:32,alignItems:"start"}}>
               <div>
                 <p style={{fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--color-accent)",marginBottom:8}}>{c.business.label}</p>
@@ -246,16 +246,15 @@ export default function Home() {
 
       <style jsx>{`
         @media(max-width:768px) {
-          .glass-card { padding: 24px !important; }
-          h1 { font-size: 32px !important; }
-          .lg-container > div[style*="grid-template-columns: repeat(3, 1fr)"] { grid-template-columns: 1fr !important; }
-          .lg-container > div[style*="position: absolute; top: 40px"] { display: none !important; }
-          footer > div { flex-direction: column !important; text-align: center !important; }
-          [style*="grid-template-columns: 1fr 1fr; gap: 32px;"] { grid-template-columns: 1fr !important; }
-          .glass-hamburger { display: flex !important; }
+          .glass-card h1 { font-size: 32px !important; }
+          footer > div { flex-direction: column !important; text-align: center !important; gap: 8px !important; }
+          footer .glass-nav__logo { margin-bottom: 4px; }
+          footer .glass-footer__links { gap: 12px; flex-wrap: wrap; justify-content: center; }
         }
         @media(max-width:480px) {
-          [style*="grid-template-columns: repeat(3, 1fr)"] { grid-template-columns: 1fr !important; }
+          .glass-nav { padding: 0 12px !important; }
+          footer .glass-footer__links { gap: 8px; }
+          footer .glass-footer__links a { font-size: 12px; }
         }
       `}</style>
     </>

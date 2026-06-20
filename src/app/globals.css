@@ -464,6 +464,8 @@
 @media(max-width:768px) {
   .glass-nav__links, .glass-nav__right .glass-btn-ghost, .glass-lang { display:none; }
   .glass-hamburger { display:flex; }
+  .lg-section [style*="grid-template-columns: repeat(3, 1fr)"] { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .lg-section [style*="grid-template-columns: 1fr 1fr; gap: 32px;"] { grid-template-columns: 1fr !important; gap: 24px !important; }
 }
 @media(max-width:480px) {
   .mesh-blob--amber { width:350px; height:350px; top:-100px; right:-150px; }
