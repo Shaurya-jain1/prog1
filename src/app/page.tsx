@@ -153,7 +153,6 @@ export default function Home() {
           <p className="section-label" style={{color:"var(--color-accent)",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",textAlign:"center",marginBottom:4}}>{c.how.label}</p>
           <h2 style={{fontFamily:"var(--font-display-lg)",fontSize:"clamp(24px,3vw,28px)",fontWeight:600,letterSpacing:"-0.02em",color:"var(--text-primary)",textAlign:"center",marginBottom:32}}>{c.how.title}</h2>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:24,maxWidth:960,margin:"0 auto",position:"relative"}}>
-            <div style={{position:"absolute",top:40,left:"calc(16.66% + 24px)",right:"calc(16.66% + 24px)",height:1,borderTop:"2px dashed var(--glass-dashed)",pointerEvents:"none"}} />
             {c.how.steps.map((s:any,i:number) => (
               <div key={s.num} className={`glass-card animate-fade-scale ${i===0?"animate-fs-1":i===1?"animate-fs-2":"animate-fs-3"}`} style={{padding:32,textAlign:"center",position:"relative",zIndex:1}}>
                 <div style={{fontFamily:"var(--font-display-lg)",fontSize:72,fontWeight:700,color:"rgba(255,255,255,0.15)",lineHeight:1,marginBottom:8}}>{s.num}</div>
