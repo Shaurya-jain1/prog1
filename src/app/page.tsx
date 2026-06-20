@@ -152,7 +152,7 @@ export default function Home() {
         <div className="lg-container">
           <p className="section-label" style={{color:"var(--color-accent)",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",textAlign:"center",marginBottom:4}}>{c.how.label}</p>
           <h2 style={{fontFamily:"var(--font-display-lg)",fontSize:"clamp(24px,3vw,28px)",fontWeight:600,letterSpacing:"-0.02em",color:"var(--text-primary)",textAlign:"center",marginBottom:32}}>{c.how.title}</h2>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:24,maxWidth:960,margin:"0 auto",position:"relative"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(260px, 1fr))",gap:24,maxWidth:960,margin:"0 auto",position:"relative"}}>
             {c.how.steps.map((s:any,i:number) => (
               <div key={s.num} className={`glass-card animate-fade-scale ${i===0?"animate-fs-1":i===1?"animate-fs-2":"animate-fs-3"}`} style={{padding:32,textAlign:"center",position:"relative",zIndex:1}}>
                 <div style={{fontFamily:"var(--font-display-lg)",fontSize:72,fontWeight:700,color:"rgba(255,255,255,0.15)",lineHeight:1,marginBottom:8}}>{s.num}</div>
@@ -170,7 +170,7 @@ export default function Home() {
         <div className="lg-container">
           <p className="section-label" style={{color:"var(--color-accent)",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",textAlign:"center",marginBottom:4}}>{c.uses.label}</p>
           <h2 style={{fontFamily:"var(--font-display-lg)",fontSize:"clamp(24px,3vw,28px)",fontWeight:600,letterSpacing:"-0.02em",color:"var(--text-primary)",textAlign:"center",marginBottom:32}}>{c.uses.title}</h2>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,maxWidth:960,margin:"0 auto"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:16,maxWidth:960,margin:"0 auto"}}>
             {c.uses.list.map((p:any,i:number) => (
               <div key={p.title} className={`glass-card animate-fade-scale ${`animate-fs-${Math.min(i+1,5)}`}`} style={{padding:24,borderTop:"2px solid var(--color-accent-border)"}}>
                 <div style={{fontSize:28,color:"var(--color-accent)",marginBottom:16}}><i className={p.icon} /></div>
@@ -186,7 +186,7 @@ export default function Home() {
       <section className="lg-section" style={{padding:"clamp(32px, 6vw, 80px) 0"}}>
         <div className="lg-container">
           <div className="glass-card" style={{maxWidth:960,margin:"0 auto",padding:"clamp(20px, 3vw, 32px)",background:"var(--glass-bg-strong)"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:32,alignItems:"start"}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))",gap:32,alignItems:"start"}}>
               <div>
                 <p style={{fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"var(--color-accent)",marginBottom:8}}>{c.business.label}</p>
                 <h2 style={{fontFamily:"var(--font-display-lg)",fontSize:"clamp(22px,3vw,28px)",fontWeight:600,letterSpacing:"-0.02em",color:"var(--text-primary)",marginBottom:8}}>{c.business.title}</h2>
@@ -243,20 +243,6 @@ export default function Home() {
           </div>
         </div>
       </footer>
-
-      <style jsx>{`
-        @media(max-width:768px) {
-          .glass-card h1 { font-size: 32px !important; }
-          footer > div { flex-direction: column !important; text-align: center !important; gap: 8px !important; }
-          footer .glass-nav__logo { margin-bottom: 4px; }
-          footer .glass-footer__links { gap: 12px; flex-wrap: wrap; justify-content: center; }
-        }
-        @media(max-width:480px) {
-          .glass-nav { padding: 0 12px !important; }
-          footer .glass-footer__links { gap: 8px; }
-          footer .glass-footer__links a { font-size: 12px; }
-        }
-      `}</style>
     </>
   );
 }
