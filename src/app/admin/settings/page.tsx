@@ -39,7 +39,7 @@ const L: Record<string, Record<string, string>> = {
 
 interface Office {
   id: string; name: string; code: string; serviceTypes: string[]; dailyLimit: number;
-  schedule: Record<string, DaySchedule | null>; public: boolean;
+  schedule: Record<string, DaySchedule | null>; public: boolean; appointmentPrice: number;
 }
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -62,6 +62,7 @@ export default function AdminSettingsPage() {
   const [officeIdx, setOfficeIdx] = useState(0);
   const [office, setOffice] = useState<Office | null>(null);
   const [name, setName] = useState(""); const [limit, setLimit] = useState(100);
+  const [appointmentPrice, setAppointmentPrice] = useState(0);
   const [services, setServices] = useState<string[]>(["General"]);
   const [schedule, setSchedule] = useState<Record<string, DaySchedule | null>>(DEFAULT_SCHEDULE());
   const [isPublic, setIsPublic] = useState(false);
@@ -82,8 +83,8 @@ export default function AdminSettingsPage() {
     const d = list[idx2];
     const sched = d.schedule || DEFAULT_SCHEDULE();
     setOfficeIdx(idx2);
-    setOffice({ id: d.id, name: d.name, code: d.code, serviceTypes: d.serviceTypes || ["General"], dailyLimit: d.dailyLimit || 100, schedule: sched, public: d.public === true });
-    setName(d.name); setLimit(d.dailyLimit || 100);
+    setOffice({ id: d.id, name: d.name, code: d.code, serviceTypes: d.serviceTypes || ["General"], dailyLimit: d.dailyLimit || 100, schedule: sched, public: d.public === true, appointmentPrice: d.appointmentPrice || 0 });
+    setName(d.name); setLimit(d.dailyLimit || 100); setAppointmentPrice(d.appointmentPrice || 0);
     setServices(d.serviceTypes || ["General"]); setSchedule(sched);
     setIsPublic(d.public === true);
     QRCode.toDataURL(getOfficeUrl(d.code), { width: 200, margin: 2 }).then(setQr);
@@ -105,7 +106,7 @@ export default function AdminSettingsPage() {
     const closeTime = firstOpenDay ? schedule[firstOpenDay]?.close : "17:00";
     try {
       await updateDoc(doc(getDb()!, "offices", office.id), {
-        name, dailyLimit: limit, serviceTypes: services, schedule, public: isPublic,
+        name, dailyLimit: limit, appointmentPrice, serviceTypes: services, schedule, public: isPublic,
         openDays, openTime, closeTime,
       });
       setSaved(true); setTimeout(() => setSaved(false), 3000);
@@ -199,6 +200,12 @@ export default function AdminSettingsPage() {
         <div className="card">
           <label className="label">{t("limit")}</label>
           <input type="number" className="input" value={limit} onChange={e => setLimit(Number(e.target.value))} min={1} max={1000} />
+        </div>
+
+        {/* APPOINTMENT PRICE */}
+        <div className="card">
+          <label className="label">Appointment Price (₹) <span style={{fontWeight:400,color:"#a8a29e",fontSize:12}}>(0 = free)</span></label>
+          <input type="number" className="input" value={appointmentPrice} onChange={e => setAppointmentPrice(Number(e.target.value))} min={0} />
         </div>
 
         {/* PUBLIC TOGGLE */}
